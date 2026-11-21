@@ -11,3 +11,13 @@ Source gamemode Pawn cho open.mp, lấy từ bản ZIP Los-Santos-Roleplay-2028-
 5. Chạy `COMPILE.bat` để tạo gamemode, sau đó chạy `omp-server.exe`.
 
 Người chơi dùng `/inv` hoặc `/inventory` để mở túi đồ.
+
+## Điện thoại CEF trên GTASANVN
+
+- Cài đúng bộ CEF server/client có API `CEF_RegisterEvent` và `OnCefReady` tương thích `qawno/include/cef.inc`. Trong file cấu hình server, nạp plugin hoặc component theo gói CEF đang dùng. Bản này không đóng gói binary CEF.
+- Áp dụng migration `012_phone_system.sql` và `20260726_phone_cef.sql` trên database GTASANVN.
+- Chép thư mục `scriptfiles/cef/gtasanvn_phone` lên server. Chạy `COMPILE.bat cef` để tạo `main.amx` bật CEF. `COMPILE.bat` thường vẫn hỗ trợ điện thoại dialog cho server chưa cài CEF.
+- Sau khi có vật phẩm Phone, dùng `/phone`, `/dienthoai`, hoặc bấm dùng Phone trong inventory. Client chưa có CEF sẽ tiếp tục dùng dialog khi gọi `/phone`. Tin nhắn lưu offline trong hộp thư CEF. Cuộc gọi dùng chat `/p` của gamemode. Ứng dụng Máy ảnh hướng dẫn đính URL HTTPS.
+- Bản demo giao diện mở qua `scriptfiles/cef/gtasanvn_phone/index.html?demo=1`.
+
+Để bật CEF khi biên dịch thủ công, thêm đối số `GTASANVN_CEF_PHONE=1` vào lệnh Pawn.

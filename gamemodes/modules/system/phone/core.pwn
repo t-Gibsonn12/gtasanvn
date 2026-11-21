@@ -11,6 +11,11 @@ new bool:g_PhonePowered[MAX_PLAYERS];
 new bool:g_PhoneSilent[MAX_PLAYERS];
 new g_PhonePeer[MAX_PLAYERS];
 new bool:g_PhoneConnected[MAX_PLAYERS];
+#if defined GTASANVN_CEF_PHONE
+forward GTPhoneCallState(playerid);
+forward GTPhoneCefOpen(playerid);
+#endif
+new bool:g_PhoneIncoming[MAX_PLAYERS];
 new g_PhoneContactCount[MAX_PLAYERS];
 new g_PhoneContactNumber[MAX_PLAYERS][50];
 new g_PhoneContactName[MAX_PLAYERS][50][32];
@@ -138,15 +143,23 @@ stock Phone_ClearCall(playerid, bool:notifyPeer = true)
     new const peer = g_PhonePeer[playerid];
     g_PhonePeer[playerid] = INVALID_PLAYER_ID;
     g_PhoneConnected[playerid] = false;
+    g_PhoneIncoming[playerid] = false;
     g_PhoneContactCount[playerid] = 0;
     g_PhoneSelectedContactNumber[playerid] = 0;
     g_PhoneSelectedContactName[playerid][0] = 0;
     g_PhonePendingContactNumber[playerid] = 0;
     Phone_DetachHandset(playerid);
+    #if defined GTASANVN_CEF_PHONE
+    GTPhoneCallState(playerid);
+    #endif
     if (peer != INVALID_PLAYER_ID && IsPlayerConnected(peer) && g_PhonePeer[peer] == playerid)
     {
         g_PhonePeer[peer] = INVALID_PLAYER_ID;
         g_PhoneConnected[peer] = false;
+        g_PhoneIncoming[peer] = false;
+        #if defined GTASANVN_CEF_PHONE
+        GTPhoneCallState(peer);
+        #endif
         Phone_DetachHandset(peer);
         if (notifyPeer) SendClientMessage(peer, 0xFFD966FF, "Cuoc goi da ket thuc.");
     }
@@ -160,6 +173,9 @@ stock Phone_OpenMenu(playerid)
     if (!Phone_HasItem(playerid))
         return SendClientMessage(playerid, COLOR_RED, "Ban khong co vat pham Phone trong tui do.");
 
+    #if defined GTASANVN_CEF_PHONE
+    if (GTPhoneCefOpen(playerid)) return 1;
+    #endif
     new title[96], body[192];
     format(title, sizeof(title), "Dien thoai %d | Pin %d%%", g_PhoneNumber[playerid], g_PhoneBattery[playerid]);
     format(body, sizeof(body), "%s dien thoai\n%s che do im lang\nDanh ba\nHuong dan lenh",
@@ -183,6 +199,7 @@ stock Phone_LoadForCharacter(playerid)
     g_PhoneNumber[playerid] = 0;
     g_PhonePeer[playerid] = INVALID_PLAYER_ID;
     g_PhoneConnected[playerid] = false;
+    g_PhoneIncoming[playerid] = false;
     new query[192];
     mysql_format(g_DatabaseHandle, query, sizeof(query),
         "SELECT `phone_number`,`powered`,`silent`,`battery` FROM `character_phone_profiles` WHERE `character_id`=%d LIMIT 1",
@@ -235,6 +252,7 @@ hook OnPlayerConnect(playerid)
     g_PhoneSilent[playerid] = false;
     g_PhonePeer[playerid] = INVALID_PLAYER_ID;
     g_PhoneConnected[playerid] = false;
+    g_PhoneIncoming[playerid] = false;
     if (IsPlayerAttachedObjectSlotUsed(playerid, PHONE_ATTACH_SLOT))
         RemovePlayerAttachedObject(playerid, PHONE_ATTACH_SLOT);
     return 1;
@@ -269,6 +287,11 @@ CMD:call(playerid, params[])
     if (g_PhonePeer[targetid] != INVALID_PLAYER_ID) return SendClientMessage(playerid, COLOR_RED, "Thue bao dang ban.");
     g_PhonePeer[playerid] = targetid;
     g_PhonePeer[targetid] = playerid;
+    g_PhoneIncoming[targetid] = true;
+    #if defined GTASANVN_CEF_PHONE
+    GTPhoneCallState(targetid);
+    GTPhoneCallState(playerid);
+    #endif
     Phone_AttachHandset(playerid);
     g_PhoneBattery[playerid]--;
     Phone_Save(playerid);
@@ -287,10 +310,14 @@ CMD:pickup(playerid, params[])
     #pragma unused params
     if (!Phone_Require(playerid)) return 1;
     new const peer = g_PhonePeer[playerid];
-    if (peer == INVALID_PLAYER_ID || !IsPlayerConnected(peer) || g_PhoneConnected[playerid])
+    if (peer == INVALID_PLAYER_ID || !IsPlayerConnected(peer) || g_PhoneConnected[playerid] || !g_PhoneIncoming[playerid])
         return SendClientMessage(playerid, COLOR_RED, "Ban khong co cuoc goi den nao de nghe.");
     g_PhoneConnected[playerid] = true;
     g_PhoneConnected[peer] = true;
+    #if defined GTASANVN_CEF_PHONE
+    GTPhoneCallState(peer);
+    GTPhoneCallState(playerid);
+    #endif
     Phone_AttachHandset(playerid);
     Phone_ApplyTalkAnimation(peer);
     SendClientMessage(playerid, 0xFFD966FF, "Ban dang nghe dien thoai, su dung /p [text] de noi chuyen, /hangup de tat may.");

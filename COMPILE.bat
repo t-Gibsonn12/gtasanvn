@@ -2,6 +2,8 @@
 setlocal
 cd /d "%~dp0"
 title LS:RP - Compile
+set "CEF_PHONE_DEFINE="
+if /I "%~1"=="cef" set "CEF_PHONE_DEFINE=GTASANVN_CEF_PHONE=1"
 
 if not exist "qawno\pawncc.exe" (
     echo [ERROR] Khong tim thay qawno\pawncc.exe
@@ -26,7 +28,7 @@ if errorlevel 1 (
 :compile
 echo.
 echo ===== COMPILE LS:RP BASE =====
-"qawno\pawncc.exe" "gamemodes\main.pwn" -i"qawno\include" -o"gamemodes\main.amx"
+"qawno\pawncc.exe" "gamemodes\main.pwn" -i"qawno\include" -o"gamemodes\main.amx" %CEF_PHONE_DEFINE%
 if errorlevel 1 (
     echo.
     echo [FAILED] Compile co loi. Gui log compiler cho ChatGPT.

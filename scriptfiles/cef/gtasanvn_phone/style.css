@@ -1,0 +1,46 @@
+:root{font-family:system-ui,-apple-system,"Segoe UI",sans-serif;color:#202428;color-scheme:light;font-size:14px}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+body{margin:0;background:transparent;overflow:hidden}
+button,input,textarea{font:inherit}
+button{cursor:pointer}
+button:focus-visible,input:focus-visible,textarea:focus-visible{outline:2px solid #6487ad;outline-offset:2px}
+.phone{position:fixed;right:clamp(12px,4vw,70px);bottom:clamp(12px,4vh,60px);width:min(345px,calc(100vw - 24px));height:min(650px,calc(100vh - 30px));overflow:hidden;border:5px solid #25282a;border-radius:36px;background:#535a62 url("wallpaper.jpg") center/cover;box-shadow:0 14px 45px #0007;color:white;display:flex;flex-direction:column}
+.phone::before{content:"";position:absolute;inset:0;background:linear-gradient(#1e242752,#24252e20 40%,#18191894);pointer-events:none}
+.status{position:relative;z-index:2;display:flex;align-items:center;justify-content:space-between;padding:10px 18px;font-size:12px;min-height:38px}
+.status button,.app-header button{background:none;border:0;color:inherit;padding:0 4px;font-size:22px;line-height:1}
+.lock,.home{position:relative;display:flex;flex:1;flex-direction:column;min-height:0}
+.lock{text-align:center;padding:8vh 18px 0;align-items:stretch;touch-action:none}
+.lock time{font-size:clamp(48px,9vh,82px);font-weight:350;line-height:1.05;letter-spacing:-.065em}
+.lock #date{margin-top:9px;font-size:16px}
+.unlock{margin:auto auto 9px;background:#202328b8;color:white;border:1px solid #ffffff21;border-radius:999px;padding:8px 15px;font-size:12px}
+.lock-alert{background:#f6f5f2e8;color:#242628;border:0;border-radius:17px;text-align:left;padding:11px 14px;margin:auto 0 12px}
+.lock-alert span{display:block;margin-top:4px;color:#4b5156}
+.home{justify-content:flex-end;overflow:auto}
+.apps{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:clamp(7px,2vh,15px);padding:15px 13px 10px}
+.app-icon{display:flex;flex-direction:column;align-items:center;gap:5px;background:none;border:0;color:#fff;font-size:11px;padding:0}
+.app-icon span{width:clamp(37px,8vh,57px);aspect-ratio:1;display:grid;place-items:center;border-radius:16px;background:#dedbd1;color:#292b2b;font-family:"Segoe UI Symbol",system-ui,sans-serif;font-size:25px;box-shadow:0 2px 5px #0002}
+.app-icon:nth-child(3n+1) span{background:#d3d6c8}.app-icon:nth-child(3n) span{background:#cbd2db}
+.app{position:relative;flex:1;min-height:0;background:#f2f2f0;color:#252a2e;display:flex;flex-direction:column;overflow:hidden}
+.app-header{display:flex;align-items:center;gap:14px;padding:12px 15px 10px;border-bottom:1px solid #ddd}
+.app-header h1{font-size:18px;margin:0;font-weight:650}
+.app-header button{font-size:30px;color:#405e7f}
+.content{overflow:auto;flex:1;padding:13px 14px 16px}
+.content p{line-height:1.4;margin:7px 0;white-space:pre-wrap;overflow-wrap:anywhere}
+.content h2{font-size:14px;margin:14px 0 8px}
+.card{background:white;border:1px solid #e2e2e0;border-radius:15px;padding:11px 12px;margin-bottom:9px;overflow-wrap:anywhere}
+.subtle{color:#586064;font-size:12px}
+.field{display:block;width:100%;padding:10px;color:#191e22;background:white;border:1px solid #cfd0d0;border-radius:10px;margin-bottom:8px}
+textarea.field{min-height:72px;resize:vertical}
+.action{display:inline-block;border:0;border-radius:9px;background:#e3e7ec;color:#294562;font-weight:600;padding:8px 10px;margin:4px 4px 4px 0}
+.primary{background:#33485e;color:white}
+.action:disabled{opacity:.6;cursor:default}
+.social-photo{display:block;width:100%;max-height:225px;object-fit:contain;border-radius:9px;background:#f0f0ef;margin-top:8px}
+.toast,.alert{font-size:13px;color:#292d31;background:#f3f2efe8;box-shadow:0 3px 16px #0003;border-radius:13px;padding:9px 12px;margin:0}
+.toast{position:absolute;bottom:28px;left:11px;right:11px;z-index:4;pointer-events:none}
+.alert{position:fixed;right:clamp(12px,4vw,70px);top:6vh;width:min(315px,calc(100vw - 24px))}
+.alert p{margin:4px 0 0}
+.home-button{position:relative;flex:none;width:100%;height:19px;border:0;background:none}
+.home-button::after{content:"";display:block;margin:auto;width:100px;height:4px;border-radius:999px;background:#fff}
+.phone.app-open .home-button{background:#f2f2f0}
+.phone.app-open .home-button::after{background:#343638}

@@ -1,0 +1,40 @@
+-- Apply after 012_phone_system.sql on the GTASANVN database.
+CREATE TABLE IF NOT EXISTS gt_phone_messages (
+ id INT AUTO_INCREMENT PRIMARY KEY,
+ sender_uid INT NOT NULL,
+ recipient_uid INT NOT NULL,
+ sender_number INT NOT NULL,
+ recipient_number INT NOT NULL,
+ body VARCHAR(240) NOT NULL DEFAULT '',
+ has_position TINYINT NOT NULL DEFAULT 0,
+ x FLOAT NOT NULL DEFAULT 0, y FLOAT NOT NULL DEFAULT 0, z FLOAT NOT NULL DEFAULT 0,
+ created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+ KEY sender_history (sender_uid,id),
+ KEY recipient_history (recipient_uid,id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE IF NOT EXISTS gt_iphone_posts (
+ id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+ author_uid INT NOT NULL,
+ author VARCHAR(24) NOT NULL,
+ body VARCHAR(240) NOT NULL,
+ photo_url VARCHAR(500) NOT NULL DEFAULT '',
+ created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE IF NOT EXISTS gt_iphone_likes (
+ post_id BIGINT UNSIGNED NOT NULL,
+ user_uid INT NOT NULL,
+ PRIMARY KEY (post_id,user_uid),
+ FOREIGN KEY (post_id) REFERENCES gt_iphone_posts(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE IF NOT EXISTS gt_iphone_comments (
+ id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+ post_id BIGINT UNSIGNED NOT NULL,
+ author_uid INT NOT NULL,
+ author VARCHAR(24) NOT NULL,
+ body VARCHAR(240) NOT NULL,
+ KEY post_comments (post_id,id),
+ FOREIGN KEY (post_id) REFERENCES gt_iphone_posts(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
