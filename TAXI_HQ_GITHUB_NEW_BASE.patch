@@ -1,0 +1,20 @@
+--- a/gamemodes/modules/core/player/character/utils.pwn
++++ b/gamemodes/modules/core/player/character/utils.pwn
+@@ -15,12 +15,12 @@
+ #define CHARACTER_MIN_AGE            (18)
+ #define CHARACTER_MAX_AGE            (80)
+ 
+ #define CHARACTER_MIN_BIRTH_YEAR     (1912)
+ #define CHARACTER_MAX_BIRTH_YEAR     (1974)
+-// Ganton
+-#define GANTON_SPAWN_X               (2495.3633)
+-#define GANTON_SPAWN_Y               (-1687.3105)
+-#define GANTON_SPAWN_Z               (13.5156)
+-#define GANTON_SPAWN_A               (0.0)
++// LS Taxi HQ - first spawn for newly created characters.
++#define GANTON_SPAWN_X               (1813.3513)
++#define GANTON_SPAWN_Y               (-1873.2487)
++#define GANTON_SPAWN_Z               (13.5704)
++#define GANTON_SPAWN_A               (276.3542)
+ stock Float:PlayerHealth_Get(playerid);
+ stock Float:PlayerHealth_GetArmour(playerid);

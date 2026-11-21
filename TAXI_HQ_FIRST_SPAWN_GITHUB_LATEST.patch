@@ -1,0 +1,37 @@
+--- a/gamemodes/modules/core/player/character/utils.pwn
++++ b/gamemodes/modules/core/player/character/utils.pwn
+@@ -1,9 +1,9 @@
+ #define CHARACTER_MIN_BIRTH_YEAR     (1912)
+ #define CHARACTER_MAX_BIRTH_YEAR     (1974)
+-// Ganton
+-#define GANTON_SPAWN_X               (2495.3633)
+-#define GANTON_SPAWN_Y               (-1687.3105)
+-#define GANTON_SPAWN_Z               (13.5156)
+-#define GANTON_SPAWN_A               (0.0)
++// LS Taxi HQ - default first spawn for newly created characters.
++#define GANTON_SPAWN_X               (1813.3513)
++#define GANTON_SPAWN_Y               (-1873.2487)
++#define GANTON_SPAWN_Z               (13.5704)
++#define GANTON_SPAWN_A               (276.3542)
+ stock Float:PlayerHealth_Get(playerid);
+ stock Float:PlayerHealth_GetArmour(playerid);
+--- a/gamemodes/modules/core/player/character/cinematic.pwn
++++ b/gamemodes/modules/core/player/character/cinematic.pwn
+@@ -1,10 +1,13 @@
+     s_CinematicSpawnActive[playerid] = true;
+     s_CinematicNewCharacter[playerid] = true;
+ 
+-    s_CinematicTargetX[playerid] = GANTON_SPAWN_X;
+-    s_CinematicTargetY[playerid] = GANTON_SPAWN_Y;
+-    s_CinematicTargetZ[playerid] = GANTON_SPAWN_Z;
+-    s_CinematicTargetA[playerid] = GANTON_SPAWN_A;
++    // CharacterCreator_Confirm already saved the Taxi HQ coordinates into
++    // character runtime data. Reuse that authoritative position here instead
++    // of overwriting the new character with the old Ganton spawn.
++    s_CinematicTargetX[playerid] = s_CharacterPosX[playerid];
++    s_CinematicTargetY[playerid] = s_CharacterPosY[playerid];
++    s_CinematicTargetZ[playerid] = s_CharacterPosZ[playerid];
++    s_CinematicTargetA[playerid] = s_CharacterPosA[playerid];
+ 
+     // Dang o interior Character Creator.
+     // Fade den truoc khi chuyen ra Los Santos.

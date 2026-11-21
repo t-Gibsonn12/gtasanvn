@@ -1,0 +1,5 @@
+hostname = 127.0.0.1
+username = lsrp
+database = lsrp
+server_port = 3306
+# Add a password line for accounts with a password.

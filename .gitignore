@@ -1,0 +1,16 @@
+# Ignore the compiled code (AMX)
+*.amx
+/mysql.ini
+/.env
+/bans.json
+/log.txt
+/logs/
+/_downloads/
+/_dependency_temp/
+/.deps-download/
+/.deps-extract/
+*.dll
+*.exe
+*.pdb
+*.so
+*.dylib

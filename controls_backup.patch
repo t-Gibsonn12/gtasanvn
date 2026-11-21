@@ -1,0 +1,43 @@
+diff --git a/gamemodes/modules/system/vehicles/controls.pwn b/gamemodes/modules/system/vehicles/controls.pwn
+index 75fd01e..1710606 100644
+--- a/gamemodes/modules/system/vehicles/controls.pwn
++++ b/gamemodes/modules/system/vehicles/controls.pwn
+@@ -389,19 +389,31 @@ stock CarControls_ToggleTrunk(playerid, vehicleid)
+ stock CarControls_Execute(playerid, E_CAR_CONTROL_ACTION:action)
+ {
+     new vehicleid;
+-    if (!CarControls_GetDriverVehicle(playerid, vehicleid))
+-    {
+-        return 0;
+-    }
++    
+ 
+     switch (action)
+     {
+-        case CAR_ACTION_ENGINE:
++        case CAR_ACTION_ENGINE: {
++            if (!CarControls_GetDriverVehicle(playerid, vehicleid))
++            {
++                return 0;
++            }
+             return CarControls_ToggleEngine(playerid, vehicleid);
+-        case CAR_ACTION_LIGHTS:
++        }
++        case CAR_ACTION_LIGHTS: {
++            if (!CarControls_GetDriverVehicle(playerid, vehicleid))
++            {
++                return 0;
++            }
+             return CarControls_ToggleLights(playerid, vehicleid);
+-        case CAR_ACTION_WINDOWS:
++        } 
++        case CAR_ACTION_WINDOWS: {
++            if (!CarControls_GetDriverVehicle(playerid, vehicleid))
++            {
++                return 0;
++            }
+             return CarControls_ToggleWindows(playerid, vehicleid);
++        } 
+         case CAR_ACTION_LOCK:
+             return CarControls_ToggleLock(playerid, vehicleid);
+         case CAR_ACTION_HOOD:
