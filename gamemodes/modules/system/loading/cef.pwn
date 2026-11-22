@@ -24,13 +24,18 @@ public Loading_Finish(playerid, session)
     return 1;
 }
 
-stock Loading_Begin(playerid)
+stock Loading_Wait(playerid, milliseconds)
 {
     s_LoadingSession[playerid]++;
+    SetTimerEx("Loading_Finish", milliseconds, false, "dd", playerid, s_LoadingSession[playerid]);
+}
+
+stock Loading_Begin(playerid)
+{
     s_LoadingPending[playerid] = true;
     s_LoadingBrowser[playerid] = false;
     s_LoadingEnding[playerid] = false;
-    SetTimerEx("Loading_Finish", 4500, false, "dd", playerid, s_LoadingSession[playerid]);
+    Loading_Wait(playerid, 4500);
     return 1;
 }
 
@@ -45,6 +50,7 @@ hook OnCefReady(playerid)
 {
     if (!s_LoadingPending[playerid] || s_LoadingBrowser[playerid]) return 1;
     s_LoadingBrowser[playerid] = true;
+    Loading_Wait(playerid, 5000);
     CEF_CreateBrowser(playerid, LOADING_BROWSER, "http://cef/gtasanvn_loading/index.html", false, false);
     return 1;
 }
@@ -53,6 +59,7 @@ hook OnCefInitialize(playerid, bool:success, E_CEF_INIT_REASON:reason, const mes
 {
     #pragma unused reason, message
     if (!success) Loading_Finish(playerid, s_LoadingSession[playerid]);
+    else if (s_LoadingPending[playerid] && !s_LoadingBrowser[playerid]) Loading_Wait(playerid, 20000);
     return 1;
 }
 
