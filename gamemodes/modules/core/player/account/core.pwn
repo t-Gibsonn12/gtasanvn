@@ -28,7 +28,11 @@ hook OnPlayerConnect(playerid)
     // same empty-room camera used by the character selector.
     TogglePlayerSpectating(playerid, true);
     CharacterSelector_ApplyRoomCamera(playerid);
-    Account_ShowUsernameDialog(playerid);
+    #if defined GTASANVN_CEF_PHONE
+        Loading_Begin(playerid);
+    #else
+        Account_ShowUsernameDialog(playerid);
+    #endif
     return 1;
 }
 

@@ -123,6 +123,9 @@ forward Trucking_ShowEmployeeCompanyMenu(playerid);
 #include "modules/core/player/character/selector.pwn"
 #include "modules/core/player/character/core.pwn"
 
+#if defined GTASANVN_CEF_PHONE
+    #include "modules/system/loading/cef.pwn"
+#endif
 #include "modules/core/player/account/core.pwn"
 
 
