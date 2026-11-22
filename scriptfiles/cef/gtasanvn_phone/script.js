@@ -19,6 +19,11 @@
   Object.assign(data, { tutorial:-1, account:'', battery:null, silent:false, gps:[], position:null,
     transactions:null, notifications:[], unreadMessages:new Map() });
   const missionNames = ['Mua xe Bobcat','Làm căn cước','Mở tài khoản ngân hàng'];
+  let composeSMS=false, editContact=null, recentTab=false, dialValue='', recent=[];
+  let theme='dark', wallpaper='dusk', brightness=100;
+  try {
+    ({theme='dark',wallpaper='dusk',brightness=100}=JSON.parse(localStorage.getItem('gtasanvn-display') || '{}'));
+  } catch {}
   let current = '', selectedPost = 0, toastTimer, lockTouch = null;
   let alertData = null, posting = false, postTimer, probeTimer, selectedThread = 0, smsDraft = null;
   const money = n => new Intl.NumberFormat('vi-VN').format(Number(n)) + ' $';
@@ -69,6 +74,7 @@
     $('lock').hidden = name !== 'lock';
     $('home').hidden = name !== 'home';
     $('app').hidden = name === 'lock' || name === 'home';
+    $('app').dataset.screen=name;
     $('toast').hidden = true;
     $('phone').classList.toggle('app-open', !$('app').hidden);
     if (name === 'home') renderToday();
@@ -91,6 +97,7 @@
       profile:'phone:profile',vehicles:'phone:vehicles',contacts:'phone:contacts',
       bank:'phone:bankHistory',settings:'phone:hubData',missions:'phone:hubData'}[name];
     if (event) emit(event);
+    if (name === 'sms' || name === 'calls') emit('phone:contacts');
     if (name === 'map') {
       emit('phone:gpsList');
       emit('phone:history');
@@ -175,16 +182,29 @@
     }
   }
   function renderCalls(c) {
+    const tabs=make('nav','','comm-toolbar');
+    tabs.id='call-tabs';
+    tabs.append(button('Bàn phím',() => { recentTab=false;render(); },!recentTab),
+      button('Gần đây',() => { recentTab=true;render();if(!demo) emit('phone:recentCalls'); },recentTab),
+      button('Danh bạ',() => open('contacts')));
+    c.append(tabs);
+    const history=make('div','','comm-list'); history.id='call-recent'; c.append(history);
+    renderRecent();
     const number = field('Số điện thoại','number',9);
     const state = make('p', '', 'subtle');
     state.id = 'call-state';
-    number.classList.add('dial-number');
+    number.classList.add('dial-number'); number.value=dialValue;
+    number.oninput=() => { dialValue=number.value; };
     const keypad = make('div','','dialpad');
     for (const digit of '123456789') {
-      keypad.append(button(digit, () => { if(number.value.length<9) number.value += digit; }));
+      const key=button(digit, () => { if(number.value.length<9) dialValue=number.value+=digit; });
+      const letters=['','ABC','DEF','GHI','JKL','MNO','PQRS','TUV','WXYZ'][Number(digit)-1];
+      key.setAttribute('aria-label',digit);
+      if (letters) key.append(make('small',letters));
+      keypad.append(key);
     }
-    keypad.append(make('span'),button('0', () => { if(number.value.length<9) number.value += '0'; }));
-    keypad.append(button('⌫', () => { number.value=number.value.slice(0,-1); }));
+    keypad.append(make('span'),button('0', () => { if(number.value.length<9) dialValue=number.value+='0'; }));
+    keypad.append(button('⌫', () => { dialValue=number.value.slice(0,-1); }));
     const call = button('Gọi', () => {
       const value = validNumber(number.value.trim());
       if (value) emit('phone:call', value); else note('Nhập số điện thoại hợp lệ.');
@@ -211,49 +231,80 @@
     state.textContent = data.stage === 1 ? 'Cuộc gọi đến · ' + data.peer :
       data.stage === 2 ? 'Đã kết nối · ' + data.peer :
       data.stage !== -1 ? 'Đang gọi · ' + data.peer : 'Bàn phím gọi';
-    for (const id of ['call-number','call-pad','call-start']) $(id).hidden = data.stage !== -1;
+    $('call-recent').hidden=!recentTab || data.stage!==-1;
+    $('call-tabs').hidden=data.stage!==-1;
+    for (const id of ['call-number','call-pad','call-start']) $(id).hidden = data.stage !== -1 || recentTab;
     $('call-pickup').hidden = data.stage !== 1;
     $('call-hangup').hidden = data.stage === -1;
     $('call-text').hidden = data.stage !== 2;
   }
+  const contactName = number => data.contacts.find(row => Number(row.number)===Number(number))?.name || String(number);
+  function commRow(name, subtitle, date, action, unread=false) {
+    const row=button('',action);
+    row.className='comm-row';
+    const avatar=make('span',name[0] || '•','comm-avatar');
+    const info=make('span','','comm-info');
+    info.append(make('strong',name),make('small',subtitle));
+    row.append(avatar,info);
+    if (date) row.append(make('time',date));
+    row.classList.toggle('unread',unread);
+    return row;
+  }
+  function renderRecent() {
+    refreshList('call-recent',c => {
+      if (!recent.length) c.append(make('p','Chưa có cuộc gọi.','subtle'));
+      const labels={call_incoming:'Cuộc gọi đến',call_outgoing:'Cuộc gọi đi',call_failed:'Gọi không thành công'};
+      for (const row of recent) c.append(commRow(contactName(row.number),labels[row.kind],row.date,
+        () => { dialValue=String(row.number);recentTab=false;render(); }));
+    });
+  }
   function renderMessages(c) {
-    const list=make('div'); list.id='message-list'; c.append(list);
-    const number = field('Số người nhận','number',9), body = field('Tin nhắn','area');
-    number.value = selectedThread ? String(selectedThread) : '';
-    c.append(number,body,button('Gửi',() => {
-      const to = validNumber(number.value.trim());
-      const message = body.value.trim();
+    const list=make('div','','comm-list'); list.id='message-list';
+    if (!selectedThread && !composeSMS) {
+      const toolbar=make('div','','comm-toolbar');
+      const search=field('Tìm hội thoại');search.id='sms-search';
+      search.oninput=() => refreshList('message-list',renderMessageItems);
+      toolbar.append(search,button('Soạn tin',() => { composeSMS=true;render(); },true));
+      c.append(toolbar,list); refreshList('message-list',renderMessageItems); return;
+    }
+    const number=field('Số người nhận','number',9), body=field('Tin nhắn','area');
+    number.value=selectedThread ? String(selectedThread) : '';
+    if (selectedThread) c.append(make('h2',contactName(selectedThread)));
+    else c.append(make('h2','Tin nhắn mới'),number);
+    c.append(list);
+    const bar=make('div','','comm-toolbar composer');
+    bar.append(body,button('Gửi',() => {
+      const to=validNumber(number.value.trim()), message=body.value.trim();
       if (!to || !message) return note('Nhập số người nhận và nội dung.');
-      smsDraft={to,message};
-      emit('phone:sms',to,message);
+      smsDraft={to,message};emit('phone:sms',to,message);
     },true),button('Gửi vị trí',() => {
-      const to = validNumber(number.value.trim());
+      const to=validNumber(number.value.trim());
       if (to) emit('phone:sendPosition',to); else note('Nhập số người nhận.');
     }));
-    body.id='sms-body';
-    refreshList('message-list',renderMessageItems);
+    c.append(bar);body.id='sms-body';
+    if (selectedThread) refreshList('message-list',renderMessageItems);
   }
   function renderMessageItems(c, onlyMap=false) {
     const peer = row => row.from === data.number ? row.to : row.from;
     if (!onlyMap && !selectedThread) {
-      const latest = new Map();
-      for (const row of data.history) if (!latest.has(peer(row))) latest.set(peer(row), row);
-      if (!latest.size) c.append(make('p','Chưa có hội thoại.','subtle'));
-      for(const [number,row] of latest) {
-        const contact=data.contacts.find(person => Number(person.number)===number);
-        const count = data.unreadMessages.get(number);
-        const entry=card((contact?.name || String(number)) + (count ? ' · '+count+' mới' : ''), row.position ? 'Đã chia sẻ vị trí' : row.text);
-        entry.append(button('Mở hội thoại',() => { selectedThread=number; markThreadRead(number); render(); }));
-        c.append(entry);
+      if (composeSMS) return;
+      const latest=new Map(), query=normalize($('sms-search')?.value || '');
+      for (const row of data.history) if (!latest.has(peer(row))) latest.set(peer(row),row);
+      for (const [number,row] of latest) {
+        const name=contactName(number), preview=row.position ? 'Đã chia sẻ vị trí' : row.text;
+        if (!normalize(name+' '+number+' '+preview).includes(query)) continue;
+        const time=row.date?.slice(0,10)===new Date().toLocaleDateString('sv-SE') ? row.date.slice(11,16) : row.date?.slice(5,10).split('-').reverse().join('/');
+        c.append(commRow(name,preview,time,() => { selectedThread=number;markThreadRead(number);render(); },data.unreadMessages.has(number)));
       }
+      if (!c.childElementCount) c.append(make('p','Không có hội thoại phù hợp.','subtle'));
       return;
     }
-    if (!onlyMap) c.append(button('Tất cả hội thoại',() => { selectedThread=0; render(); }));
     const rows = onlyMap ? data.history.filter(row => row.position) : data.history.filter(row => peer(row)===selectedThread).reverse();
     if (!rows.length) c.append(make('p',onlyMap ? 'Chưa có vị trí được chia sẻ.' : 'Chưa có tin nhắn.','subtle'));
     for (const row of rows) {
       const outbound=row.from===data.number;
       const entry = card(outbound ? 'Bạn' : String(row.from),row.position ? 'Vị trí đã chia sẻ' : row.text);
+      if(!onlyMap && row.date) entry.append(make('time',row.date,'subtle'));
       if(!onlyMap) entry.classList.add(outbound?'bubble-out':'bubble-in');
       if (row.position) entry.append(button('Đặt điểm đến',() => emit('phone:waypoint',row.id),true));
       c.append(entry);
@@ -268,7 +319,7 @@
     const destinations=make('div'); destinations.id='gps-list';
     c.append(search,plot,make('p','Sơ đồ vị trí · Bắc ở phía trên','subtle'),destinations,
       button('Hủy GPS',() => emit('phone:hub',4)),
-      button('Chia sẻ vị trí',() => open('sms')),
+      button('Chia sẻ vị trí',() => { selectedThread=0;composeSMS=true;open('sms'); }),
       make('h2','Vị trí đã chia sẻ'));
     const list=make('div'); list.id='map-list'; c.append(list);
     const update=() => {
@@ -368,20 +419,42 @@
     for(const comment of data.comments) c.append(card(comment.author,comment.body));
   }
   function renderContacts(c) {
-    const name=field('Tên liên hệ','text',31), number=field('Số điện thoại','number',9);
-    c.append(name,number,button('Lưu liên hệ',() => {
-      const value=validNumber(number.value.trim());
-      if(name.value.trim() && value) emit('phone:contactAdd',name.value.trim(),value);
-      else note('Nhập tên và số điện thoại.');
-    },true));
-    const list=make('div'); list.id='contact-list'; c.append(list);
+    if (editContact !== null) {
+      const name=field('Tên liên hệ','text',31), number=field('Số điện thoại','number',9);
+      const row=editContact;
+      name.value=row.name || ''; number.value=row.number || ''; number.readOnly=!!row.id;
+      c.append(make('h2',row.id?'Sửa liên hệ':'Liên hệ mới'),name,number,button('Lưu liên hệ',() => {
+        const value=validNumber(number.value.trim());
+        if (!name.value.trim() || !value) return note('Nhập tên và số điện thoại.');
+        if (demo) return note('Đang xem bản demo.');
+        if (row.id) emit('phone:contactRename',row.id,name.value.trim());
+        else emit('phone:contactAdd',name.value.trim(),value);
+      },true));
+      return;
+    }
+    c.append(commRow(data.name || 'Thẻ của tôi',String(data.number || ''),'',() => open('profile')));
+    const toolbar=make('div','','comm-toolbar'), search=field('Tìm tên hoặc số');
+    search.id='contact-search';search.oninput=() => refreshList('contact-list',renderContactItems);
+    toolbar.append(search,button('Thêm',() => { editContact={};render(); },true));
+    const list=make('div','','comm-list');list.id='contact-list';c.append(toolbar,list);
     refreshList('contact-list',renderContactItems);
   }
   function renderContactItems(c) {
-    for(const row of data.contacts) {
-      const el=card(row.name,row.number);
-      el.append(button('Gọi',() => { open('calls'); emit('phone:call',row.number); }),button('Nhắn tin',() => { selectedThread=Number(row.number); open('sms'); }),button('Xóa',() => emit('phone:contactDelete',row.id)));
-      c.append(el);
+    const term=normalize($('contact-search')?.value || '');
+    let group='';
+    const contacts=data.contacts.slice().sort((a,b) => a.name.localeCompare(b.name,'vi'));
+    for(const row of contacts) {
+      if (!normalize(row.name+' '+row.number).includes(term)) continue;
+      const letter=row.name[0]?.toUpperCase() || '#';
+      if (letter!==group) c.append(make('h2',group=letter,'contact-letter'));
+      const details=make('div','','comm-toolbar');
+      details.hidden=true;
+      const item=commRow(row.name,String(row.number),'',() => { details.hidden=!details.hidden; });
+      details.append(button('Gọi',() => { dialValue=String(row.number);recentTab=false;open('calls'); }),
+        button('Nhắn tin',() => { selectedThread=Number(row.number);composeSMS=false;open('sms'); }),
+        button('Sửa',() => { editContact=row;render(); }),
+        button('Xóa',() => { emit('phone:contactDelete',row.id); }));
+      c.append(item,details);
     }
   }
   function renderJobs(c) {
@@ -429,7 +502,24 @@
       c.append(row);
     }
   }
+  function applyDisplay() {
+    const phone=$('phone');
+    phone.dataset.theme=theme;
+    phone.dataset.wallpaper=wallpaper;
+    phone.style.filter='brightness('+brightness+'%)';
+    try { localStorage.setItem('gtasanvn-display',JSON.stringify({theme,wallpaper,brightness})); } catch {}
+  }
   function renderSettings(c) {
+    const display=card('Màn hình');
+    const range=make('input');range.type='range';range.min='45';range.max='100';range.value=brightness;
+    range.setAttribute('aria-label','Độ sáng điện thoại');
+    range.oninput=() => { brightness=Number(range.value);applyDisplay(); };
+    display.append(range,button('Sáng',() => { theme='light';applyDisplay();render(); },theme==='light'),
+      button('Tối',() => { theme='dark';applyDisplay();render(); },theme==='dark'),
+      button('Hoàng hôn',() => { wallpaper='dusk';applyDisplay();render(); },wallpaper==='dusk'),
+      button('Biển đêm',() => { wallpaper='ocean';applyDisplay();render(); },wallpaper==='ocean'),
+      button('Đặt lại hiển thị',() => { theme='dark';wallpaper='dusk';brightness=100;setPosition('center',false);applyDisplay();render(); }));
+    c.append(display);
     c.append(card(data.name || 'Điện thoại', 'Số điện thoại · '+(data.number || '–')),
       card('Pin',data.battery == null ? 'Đang tải…' : data.battery+'%'),card('Vị trí điện thoại'),
       button('Giữa màn hình',() => setPosition('center'),!$('phone').classList.contains('at-left')),
@@ -478,7 +568,7 @@
   function hide() {
     clearTimeout(probeTimer);
     $('phone').hidden=true; $('alert').hidden=true;
-    current=''; selectedThread=0; smsDraft=null;
+    current=''; selectedThread=0; smsDraft=null; composeSMS=false; editContact=null; dialValue='';recentTab=false;
     document.body.classList.remove('phone-visible');
   }
   function clock() {
@@ -497,12 +587,19 @@
   }
   $('close').onclick=close; $('unlock').onclick=() => view('home');
   $('home-button').onclick=() => view('home');
-  $('back').onclick=() => current==='comments' ? open('feed') : view('home');
+  $('back').onclick=() => {
+    if (current==='comments') return open('feed');
+    if (current==='sms' && (composeSMS || selectedThread)) {
+      composeSMS=false;selectedThread=0;render();return;
+    }
+    if (current==='contacts' && editContact !== null) { editContact=null;render();return; }
+    view('home');
+  };
   $('lock-alert').onclick=() => alertData && open(alertData.app || 'notifications');
   $('lock').addEventListener('pointerdown',e => { lockTouch=e.clientY; });
   $('lock').addEventListener('pointerup',e => { if(lockTouch!==null && lockTouch-e.clientY>45) view('home'); lockTouch=null; });
   document.addEventListener('keydown',e => { if(e.key==='Escape' && !$('phone').hidden) { e.preventDefault(); close(); } });
-  clock(); setInterval(clock,15000);
+  applyDisplay(); clock(); setInterval(clock,15000);
   function wire() {
     cef=window.cef;
     if (!cef || typeof cef.on!=='function') return false;
@@ -516,7 +613,7 @@
           transactions:null,tutorial:-1,battery:null,account:'',job:null,cash:0,level:0,license:0,
           position:null,gps:[],stage:-1,peer:0});
         data.unreadMessages.clear();
-        selectedThread=0; selectedPost=0; alertData=null;
+        recent=[]; editContact=null;composeSMS=false;selectedThread=0; selectedPost=0; alertData=null;
         $('lock-alert').hidden=true;
         renderBadges();
       }
@@ -536,7 +633,15 @@
     cef.on('phone:callState',(stage,peer) => { data.stage=Number(stage); data.peer=Number(peer); renderCallState(); renderBadges(); if(current==='home') renderToday(); });
     cef.on('phone:contactsClear',() => { data.contacts=[]; });
     cef.on('phone:contactItem',(id,name,number) => { data.contacts.push({id,name,number}); });
-    cef.on('phone:contactsDone',() => refreshList('contact-list',renderContactItems));
+    cef.on('phone:contactsDone',() => {
+      refreshList('contact-list',renderContactItems);
+      if (current==='sms' && !selectedThread) refreshList('message-list',renderMessageItems);
+      if (current==='calls') renderRecent();
+    });
+    cef.on('phone:contactSaved',() => { if (current==='contacts' && editContact !== null) { editContact=null;render(); } });
+    cef.on('phone:recentClear',() => { recent=[]; });
+    cef.on('phone:recentItem',(number,kind,date) => recent.push({number,kind,date}));
+    cef.on('phone:recentDone',renderRecent);
     cef.on('phone:hubInfo',(stage,battery,silent,account) => {
       Object.assign(data,{tutorial:Number(stage),battery:Number(battery),silent:asBool(silent),account});
       if(current==='home') renderToday();
@@ -557,13 +662,14 @@
     cef.on('phone:bankItem',(kind,amount,date) => { data.transactions.push({kind,amount,date}); });
     cef.on('phone:bankDone',() => { if(current==='bank') render(); });
     cef.on('phone:historyClear',() => { data.history=[]; });
-    cef.on('phone:historyItem',(id,from,to,text,position) => {
-      data.history.push({id,from:Number(from),to:Number(to),text,position:asBool(position)});
+    cef.on('phone:historyItem',(id,from,to,text,position,date) => {
+      data.history.push({id,from:Number(from),to:Number(to),text,position:asBool(position),date});
     });
     cef.on('phone:messageSent',number => {
       const draft=$('sms-body');
       if(smsDraft && Number(number)===smsDraft.to && draft && draft.value.trim()===smsDraft.message) draft.value='';
       smsDraft=null;
+      if (current==='sms' && composeSMS) { composeSMS=false;selectedThread=Number(number);render(); }
       note('Đã gửi tin nhắn.');
     });
     cef.on('phone:historyDone',() => {

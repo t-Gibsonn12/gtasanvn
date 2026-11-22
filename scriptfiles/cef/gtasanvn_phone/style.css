@@ -131,3 +131,51 @@ textarea.field { min-height: 66px; resize: vertical; }
   .content { padding: 7px 9px; }
   .home-button { height: 16px; }
 }
+
+/* Communications use the GTASANVN graphite and sea-glass palette. */
+.app[data-screen="sms"], .app[data-screen="contacts"], .app[data-screen="calls"] {
+  background: #11191e;
+}
+:is([data-screen="sms"],[data-screen="contacts"],[data-screen="calls"]) .app-header {
+  background: #1a272d; border-color: #34464e;
+}
+.comm-toolbar {
+  display: flex; align-items: center; flex-wrap: wrap; gap: 5px;
+  margin: 5px 0 9px;
+}
+.comm-toolbar .field { flex: 1 1 105px; width: auto; margin: 0; }
+.comm-toolbar .action { flex: none; margin: 0; }
+.comm-row {
+  width: 100%; border: 0; border-bottom: 1px solid var(--edge); background: transparent;
+  color: inherit; padding: 10px 2px; display: flex; align-items: center; gap: 9px; text-align: left;
+}
+.comm-row:hover { background: var(--panel); }
+.comm-avatar {
+  width: 34px; height: 34px; flex: 0 0 34px; border-radius: 12px; display: grid; place-items: center;
+  background: #2d535a; color: #e1fbf7; font-weight: 750;
+}
+.comm-row.unread .comm-avatar { box-shadow: inset 3px 0 #76e1bc; }
+.comm-row.unread strong { text-decoration: underline; text-decoration-color: #76e1bc; text-underline-offset: 3px; }
+.comm-info { flex: 1; min-width: 0; }
+.comm-info strong, .comm-info small { display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.comm-info small, .comm-row time { color: var(--muted); font-size: 10px; }
+.content .contact-letter { margin: 12px 0 0; color: var(--muted); font-size: 11px; }
+.composer { position: sticky; bottom: 0; padding: 5px; border-radius: 12px; background: var(--panel); }
+.dialpad .action { border: 1px solid #4b5d65; background: #22333a; border-radius: 15px; }
+.dialpad small { display: block; font-size: 7px; line-height: 1; letter-spacing: .1em; }
+#call-start { display: block; margin: 8px auto; min-width: 85px; border-radius: 999px; }
+.phone[data-wallpaper="ocean"] {
+  background: radial-gradient(ellipse at 78% 88%,#327e91,transparent 54%),linear-gradient(145deg,#141935,#1d5166 65%,#14233d);
+}
+.phone[data-theme="light"] {
+  color-scheme: light; --muted: #465765; --panel: #f3f7fb; --edge: #bbcad4; --accent: #0d5c98;
+}
+.phone[data-theme="light"] :is(.app,.app-header,.status,.home-button) { background: #e7eef5; color: #162934; }
+.phone[data-theme="light"] .field { background: #fff; color: #182a36; }
+.phone[data-theme="light"] .field::placeholder { color: #4e6174; }
+.phone[data-theme="light"] .bubble-out { background: #d2e8fb; }
+.phone[data-theme="light"] .home-button::after { background: #182a36; }
+@media (prefers-reduced-motion: no-preference) {
+  .app:not([hidden]) { animation: app-in .16s ease-out; }
+  @keyframes app-in { from { opacity: .65; transform: translateY(4px); } }
+}

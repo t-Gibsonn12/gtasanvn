@@ -97,8 +97,10 @@ hook OnGameModeInit()
     CEF_RegisterEvent("phone:close", "GTPhoneOnClose");
     CEF_RegisterEvent("phone:contacts", "GTPhoneContacts");
     CEF_RegisterEvent("phone:contactAdd", "GTPhoneContactAdd", Argument_String, Argument_Integer);
+    CEF_RegisterEvent("phone:contactRename", "GTPhoneContactRename", Argument_Integer, Argument_String);
     CEF_RegisterEvent("phone:contactDelete", "GTPhoneContactDelete", Argument_Integer);
     CEF_RegisterEvent("phone:sms", "GTPhoneSMS", Argument_Integer, Argument_String);
+    CEF_RegisterEvent("phone:recentCalls", "GTPhoneRecentCalls");
     CEF_RegisterEvent("phone:history", "GTPhoneHistory");
     CEF_RegisterEvent("phone:call", "GTPhoneCall", Argument_Integer);
     CEF_RegisterEvent("phone:pickup", "GTPhonePickup");
@@ -227,8 +229,31 @@ public GTPhoneContactAdd(playerid, const name[], number)
     if (strlen(name) < 1 || strlen(name) > 31 || number < 1000 || number > 999999999) return GTPhoneError(playerid, "Ten hoac so dien thoai khong hop le.");
     new query[300];
     mysql_format(g_DatabaseHandle, query, sizeof query, "INSERT INTO phone_contact_entries(character_id,contact_name,phone_number) SELECT %d,'%e',%d WHERE (SELECT COUNT(*) FROM phone_contact_entries WHERE character_id=%d)<50 ON DUPLICATE KEY UPDATE contact_name=VALUES(contact_name)", GetPlayerCharacterID(playerid), name, number, GetPlayerCharacterID(playerid));
-    mysql_tquery(g_DatabaseHandle, query, "GTPhoneAfterContact", "iii", playerid, GetPlayerCharacterID(playerid), gtPhoneQueryToken[playerid]);
+    mysql_tquery(g_DatabaseHandle, query, "GTPhoneContactSaved", "iii", playerid, GetPlayerCharacterID(playerid), gtPhoneQueryToken[playerid]);
     return 1;
+}
+
+forward GTPhoneContactRename(playerid, id, const name[]);
+public GTPhoneContactRename(playerid, id, const name[])
+{
+    if (!GTPhoneAction(playerid)) return 1;
+    if (id <= 0 || strlen(name) < 1 || strlen(name) > 31)
+        return GTPhoneError(playerid, "Ten lien he khong hop le.");
+    new query[256], uid = GetPlayerCharacterID(playerid);
+    mysql_format(g_DatabaseHandle, query, sizeof query,
+        "UPDATE phone_contact_entries SET contact_name='%e' WHERE contact_id=%d AND character_id=%d", name, id, uid);
+    if (!mysql_tquery(g_DatabaseHandle, query, "GTPhoneContactSaved", "iii", playerid, uid, gtPhoneQueryToken[playerid]))
+        return GTPhoneError(playerid, "Khong the luu lien he.");
+    return 1;
+}
+
+forward GTPhoneContactSaved(playerid, uid, token);
+public GTPhoneContactSaved(playerid, uid, token)
+{
+    if (!GTPhoneSession(playerid, uid, token) || !gtPhoneOpen[playerid]) return 1;
+    if (!cache_affected_rows()) return GTPhoneNotice(playerid, "Khong co thay doi. Danh ba toi da 50 lien he.");
+    CEF_EmitEvent(playerid, GT_PHONE_BROWSER, "phone:contactSaved");
+    return GTPhoneContacts(playerid);
 }
 forward GTPhoneContactDelete(playerid, id);
 public GTPhoneContactDelete(playerid, id)
@@ -280,7 +305,7 @@ public GTPhoneHistory(playerid)
     if (!gtPhoneOpen[playerid] || !GTPhoneAllowed(playerid)) return 1;
     new query[320], uid = GetPlayerCharacterID(playerid);
     mysql_format(g_DatabaseHandle, query, sizeof query,
-        "SELECT id,sender_number,recipient_number,body,has_position FROM gt_phone_messages WHERE sender_uid=%d OR recipient_uid=%d ORDER BY id DESC LIMIT 50", uid, uid);
+        "SELECT id,sender_number,recipient_number,body,has_position,created_at FROM gt_phone_messages WHERE sender_uid=%d OR recipient_uid=%d ORDER BY id DESC LIMIT 50", uid, uid);
     mysql_tquery(g_DatabaseHandle, query, "GTPhoneHistoryLoaded", "iii", playerid, uid, gtPhoneQueryToken[playerid]);
     return 1;
 }
@@ -288,16 +313,17 @@ forward GTPhoneHistoryLoaded(playerid, uid, token);
 public GTPhoneHistoryLoaded(playerid, uid, token)
 {
     if (!GTPhoneSession(playerid, uid, token) || !gtPhoneOpen[playerid]) return 1;
-    new rows = GTPhoneRowCount(), msg[241], id, from, to, position;
+    new rows = GTPhoneRowCount(), msg[241], date[24], id, from, to, position;
     CEF_EmitEvent(playerid, GT_PHONE_BROWSER, "phone:historyClear");
     for (new i; i < rows; i++)
     {
         cache_get_value_name(i, "body", msg);
+        cache_get_value_name(i, "created_at", date);
         cache_get_value_name_int(i, "id", id);
         cache_get_value_name_int(i, "sender_number", from);
         cache_get_value_name_int(i, "recipient_number", to);
         cache_get_value_name_int(i, "has_position", position);
-        CEF_EmitEvent(playerid, GT_PHONE_BROWSER, "phone:historyItem", CEF_INT(id), CEF_INT(from), CEF_INT(to), CEF_STR(msg), CEF_INT(position));
+        CEF_EmitEvent(playerid, GT_PHONE_BROWSER, "phone:historyItem", CEF_INT(id), CEF_INT(from), CEF_INT(to), CEF_STR(msg), CEF_INT(position), CEF_STR(date));
     }
     CEF_EmitEvent(playerid, GT_PHONE_BROWSER, "phone:historyDone");
     return 1;
@@ -856,5 +882,34 @@ public GTPhoneBankHistoryLoaded(playerid, uid, token)
         CEF_EmitEvent(playerid, GT_PHONE_BROWSER, "phone:bankItem", CEF_STR(kind), CEF_INT(amount), CEF_STR(date));
     }
     CEF_EmitEvent(playerid, GT_PHONE_BROWSER, "phone:bankDone");
+    return 1;
+}
+
+forward GTPhoneRecentCalls(playerid);
+public GTPhoneRecentCalls(playerid)
+{
+    if (!gtPhoneOpen[playerid] || !GTPhoneAllowed(playerid)) return 1;
+    new query[320], uid = GetPlayerCharacterID(playerid);
+    mysql_format(g_DatabaseHandle, query, sizeof query,
+        "SELECT target_number,event_type,created_at FROM phone_communication_logs WHERE character_id=%d AND event_type IN ('call_incoming','call_outgoing','call_failed') ORDER BY log_id DESC LIMIT 30", uid);
+    if (!mysql_tquery(g_DatabaseHandle, query, "GTPhoneRecentCallsLoaded", "iii", playerid, uid, gtPhoneQueryToken[playerid]))
+        GTPhoneError(playerid, "Khong the tai lich su cuoc goi.");
+    return 1;
+}
+
+forward GTPhoneRecentCallsLoaded(playerid, uid, token);
+public GTPhoneRecentCallsLoaded(playerid, uid, token)
+{
+    if (!GTPhoneSession(playerid, uid, token) || !gtPhoneOpen[playerid]) return 1;
+    CEF_EmitEvent(playerid, GT_PHONE_BROWSER, "phone:recentClear");
+    for (new i, rows = cache_num_rows(); i < rows; i++)
+    {
+        new number, kind[25], date[24];
+        cache_get_value_name_int(i, "target_number", number);
+        cache_get_value_name(i, "event_type", kind);
+        cache_get_value_name(i, "created_at", date);
+        CEF_EmitEvent(playerid, GT_PHONE_BROWSER, "phone:recentItem", CEF_INT(number), CEF_STR(kind), CEF_STR(date));
+    }
+    CEF_EmitEvent(playerid, GT_PHONE_BROWSER, "phone:recentDone");
     return 1;
 }
