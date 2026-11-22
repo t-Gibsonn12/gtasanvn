@@ -56,7 +56,7 @@ function show(page) {
 }
 function close() { if(demo) $('menu').hidden=true; else emit(0); }
 $('back').onclick=main;
-document.querySelector('[data-close]').onclick=close;
+for (const button of document.querySelectorAll('[data-close]')) button.onclick=close;
 document.addEventListener('keydown', e => {
   if (!$('menu').hidden && e.key==='Escape') { e.preventDefault(); close(); }
 });
