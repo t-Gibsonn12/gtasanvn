@@ -1,19 +1,18 @@
 (() => {
   'use strict';
   const $ = id => document.getElementById(id);
-  const cef = window.cef;
+  let cef = window.cef;
   const demo = !cef && new URLSearchParams(location.search).has('demo');
   const catalog = [
-    ['calls','☎','Điện thoại'],['sms','✉','Tin nhắn'],['map','⌖','Bản đồ'],
-    ['feed','▤','Bảng tin'],['jobs','▣','Công việc'],['profile','◉','Hồ sơ'],
-    ['vehicles','◇','Kho xe'],['camera','▧','Máy ảnh'],['settings','⚙','Cài đặt'],
-    ['contacts','☷','Danh bạ'],['bank','▥','Ngân hàng']
+    ['calls','☎','Điện thoại'],['sms','✉','Tin nhắn'],['contacts','☷','Danh bạ'],
+    ['map','⌖','GPS'],['vehicles','◇','Garage'],['feed','◈','Twitter'],
+    ['settings','⚙','Cài đặt']
   ];
   const titles = Object.fromEntries(catalog.map(([id,, title]) => [id,title]));
   const data = { number:0, bank:0, name:'', cash:0, level:0, hours:0, license:0,
     stage:-1, peer:0, job:null, contacts:[], history:[], posts:[], vehicles:[], comments:[] };
   let current = '', selectedPost = 0, toastTimer, lockTouch = null;
-  let alertData = null, posting = false, postTimer;
+  let alertData = null, posting = false, postTimer, probeTimer, selectedThread = 0, smsDraft = null;
   const money = n => new Intl.NumberFormat('vi-VN').format(Number(n)) + ' $';
   const notedApps = ['sms','calls'];
   const asBool = value => value === true || Number(value) === 1;
@@ -33,7 +32,7 @@
   function field(placeholder, type='text', max=240) {
     const f = make(type === 'area' ? 'textarea' : 'input', '', 'field');
     if (type !== 'area') f.type = type === 'number' ? 'text' : type;
-    if (type === 'number') f.inputMode = 'numeric';
+    if (type === 'number') { f.inputMode = 'tel'; f.autocomplete = 'off'; }
     f.placeholder = placeholder;
     f.setAttribute('aria-label', placeholder);
     f.maxLength = max;
@@ -46,8 +45,9 @@
     return el;
   }
   const emit = (event,...args) => {
-    if (cef && typeof cef.emit === 'function') cef.emit(event,...args);
-    else if (demo) note('Bản xem trước. Thao tác này cần máy chủ.');
+    if (cef && typeof cef.emit === 'function') {
+      try { cef.emit(event,...args); } catch { note('Không gửi được thao tác tới máy chủ.'); }
+    } else note(demo ? 'Đang xem bản demo.' : 'Client chưa cấp kết nối CEF.');
   };
   function note(text) {
     if (!$('phone').hidden) {
@@ -73,7 +73,7 @@
     view(name);
     const event = {sms:'phone:history',map:'phone:history',feed:'iphone:feed',jobs:'phone:jobs',
       profile:'phone:profile',vehicles:'phone:vehicles',contacts:'phone:contacts',bank:'phone:refresh'}[name];
-    if (event && !demo) emit(event);
+    if (event && !demo) { probe(); emit(event); }
   }
   function close() {
     if (demo) return view('lock');
@@ -98,56 +98,86 @@
     }
   }
   function renderCalls(c) {
-    const number = field('Số điện thoại', 'number', 9);
+    const number = field('Số điện thoại','number',9);
     const state = make('p', '', 'subtle');
     state.id = 'call-state';
-    c.append(number, button('Gọi', () => {
+    number.classList.add('dial-number');
+    const keypad = make('div','','dialpad');
+    for (const digit of '1234567890') {
+      keypad.append(button(digit, () => { if(number.value.length<9) number.value += digit; }));
+    }
+    keypad.append(button('⌫', () => { number.value=number.value.slice(0,-1); }));
+    c.append(state,number,keypad,button('Gọi', () => {
       const value = validNumber(number.value.trim());
       if (value) emit('phone:call', value); else note('Nhập số điện thoại hợp lệ.');
     },true), button('Nghe máy', () => emit('phone:pickup')),
-    button('Cúp máy', () => emit('phone:hangup')), state);
+    button('Cúp máy', () => emit('phone:hangup')));
+    const chat=make('div'); chat.id='call-text';
+    const text=field('Nói chuyện qua tin nhắn','text',120);
+    chat.append(text,button('Gửi trong cuộc gọi', () => {
+      if(text.value.trim()) emit('phone:callChat',text.value.trim());
+    }));
+    c.append(chat);
     renderCallState();
   }
   function renderCallState() {
     const state = $('call-state');
     if (!state) return;
     state.textContent = data.stage === 1 ? 'Cuộc gọi đến · ' + data.peer :
-      data.stage === 2 ? 'Đang gọi · ' + data.peer :
-      data.stage !== -1 ? 'Đang kết nối · ' + data.peer : 'Chưa có cuộc gọi.';
+      data.stage === 2 ? 'Đã kết nối · ' + data.peer :
+      data.stage !== -1 ? 'Đang gọi · ' + data.peer : 'Bàn phím gọi';
+    $('call-text').hidden=data.stage!==2;
   }
   function renderMessages(c) {
+    const list=make('div'); list.id='message-list'; c.append(list);
     const number = field('Số người nhận','number',9), body = field('Tin nhắn','area');
+    number.value = selectedThread ? String(selectedThread) : '';
     c.append(number,body,button('Gửi',() => {
       const to = validNumber(number.value.trim());
       const message = body.value.trim();
       if (!to || !message) return note('Nhập số người nhận và nội dung.');
+      smsDraft={to,message};
       emit('phone:sms',to,message);
-    },true),button('Gửi vị trí hiện tại',() => {
+    },true),button('Gửi vị trí',() => {
       const to = validNumber(number.value.trim());
       if (to) emit('phone:sendPosition',to); else note('Nhập số người nhận.');
     }));
-    c.append(make('h2','Gần đây'));
-    const list=make('div'); list.id='message-list'; c.append(list);
+    body.id='sms-body';
     refreshList('message-list',renderMessageItems);
   }
   function renderMessageItems(c, onlyMap=false) {
-    const rows = onlyMap ? data.history.filter(row => row.position) : data.history;
+    const peer = row => row.from === data.number ? row.to : row.from;
+    if (!onlyMap && !selectedThread) {
+      const latest = new Map();
+      for (const row of data.history) if (!latest.has(peer(row))) latest.set(peer(row), row);
+      if (!latest.size) c.append(make('p','Chưa có hội thoại.','subtle'));
+      for(const [number,row] of latest) {
+        const contact=data.contacts.find(person => Number(person.number)===number);
+        const entry=card(contact?.name || String(number), row.position ? 'Đã chia sẻ vị trí' : row.text);
+        entry.append(button('Mở hội thoại',() => { selectedThread=number; render(); }));
+        c.append(entry);
+      }
+      return;
+    }
+    if (!onlyMap) c.append(button('Tất cả hội thoại',() => { selectedThread=0; render(); }));
+    const rows = onlyMap ? data.history.filter(row => row.position) : data.history.filter(row => peer(row)===selectedThread).reverse();
     if (!rows.length) c.append(make('p',onlyMap ? 'Chưa có vị trí được chia sẻ.' : 'Chưa có tin nhắn.','subtle'));
     for (const row of rows) {
-      const heading = row.from === data.number ? 'Đến ' + row.to : 'Từ ' + row.from;
-      const entry = card(heading,row.position ? 'Vị trí đã chia sẻ' : row.text);
+      const outbound=row.from===data.number;
+      const entry = card(outbound ? 'Bạn' : String(row.from),row.position ? 'Vị trí đã chia sẻ' : row.text);
+      if(!onlyMap) entry.classList.add(outbound?'bubble-out':'bubble-in');
       if (row.position) entry.append(button('Đặt điểm đến',() => emit('phone:waypoint',row.id),true));
       c.append(entry);
     }
   }
   function renderMap(c) {
-    c.append(button('Điểm nhận việc Pizza',() => emit('phone:pizza',0),true));
+    c.append(button('Chia sẻ vị trí',() => open('sms'),true),button('Điểm nhận việc Pizza',() => emit('phone:pizza',0)));
     const list=make('div'); list.id='map-list'; c.append(list);
     refreshList('map-list', el => renderMessageItems(el,true));
   }
   function renderFeed(c) {
     const body = field('Chia sẻ điều gì đó','area'), photo = field('Link ảnh HTTPS','url',500);
-    c.append(body,photo,button('Đăng bài',() => {
+    c.append(make('h2','Tạo bài viết'),body,photo,button('Đăng bài',() => {
       if (posting) return;
       const link = photo.value.trim();
       if (!body.value.trim() && !link) return note('Nhập bài viết hoặc link ảnh.');
@@ -168,13 +198,15 @@
   }
   function renderPostItems(list) {
     for (const post of data.posts) {
-      const el = card(post.name,post.body);
+      const el = card(post.name);
+      el.classList.add('social-card');
       if (safePhoto(post.photo)) {
         const img = make('img','','social-photo');
         img.referrerPolicy='no-referrer'; img.loading='lazy'; img.alt='Ảnh bài đăng'; img.src=post.photo;
         img.onerror=() => img.remove();
         el.append(img);
       }
+      if(post.body) el.append(make('p',post.body));
       const like=button((post.liked?'Đã thích':'Thích')+' · '+post.likes,() => emit('iphone:like',post.id));
       like.disabled=post.liked;
       el.append(like,button('Bình luận',() => {
@@ -198,7 +230,7 @@
     for(const comment of data.comments) c.append(card(comment.author,comment.body));
   }
   function renderContacts(c) {
-    const name=field('Tên liên hệ','text',48), number=field('Số điện thoại','number',9);
+    const name=field('Tên liên hệ','text',31), number=field('Số điện thoại','number',9);
     c.append(name,number,button('Lưu liên hệ',() => {
       const value=validNumber(number.value.trim());
       if(name.value.trim() && value) emit('phone:contactAdd',name.value.trim(),value);
@@ -210,7 +242,7 @@
   function renderContactItems(c) {
     for(const row of data.contacts) {
       const el=card(row.name,row.number);
-      el.append(button('Gọi',() => { open('calls'); emit('phone:call',row.number); }),button('Xóa',() => emit('phone:contactDelete',row.id)));
+      el.append(button('Gọi',() => { open('calls'); emit('phone:call',row.number); }),button('Nhắn tin',() => { selectedThread=Number(row.number); open('sms'); }),button('Xóa',() => emit('phone:contactDelete',row.id)));
       c.append(el);
     }
   }
@@ -246,7 +278,9 @@
     c.append(card('Số dư',money(data.bank)));
   }
   function renderSettings(c) {
-    c.append(card('Số điện thoại',data.number || '–'),button('Khóa màn hình',() => view('lock'),true),button('Đổi chế độ im lặng',() => emit('phone:settings',0)),button('Tắt điện thoại',() => emit('phone:settings',1)));
+    c.append(card('Số điện thoại',data.number || '–'),card('Vị trí điện thoại'),
+      button('Giữa màn hình',() => setPosition('center'),!$('phone').classList.contains('at-left')),
+      button('Góc trái',() => setPosition('left'),$('phone').classList.contains('at-left')),button('Khóa màn hình',() => view('lock'),true),button('Đổi chế độ im lặng',() => emit('phone:settings',0)),button('Tắt điện thoại',() => emit('phone:settings',1)));
   }
   function renderCamera(c) {
     c.append(card('Chia sẻ ảnh nhân vật','Chụp ảnh trong game, tải ảnh lên HTTPS rồi dán link khi đăng bài.'),
@@ -261,8 +295,34 @@
     alert.hidden=!$('phone').hidden;
     if (!$('phone').hidden && current!=='lock') note(title);
   }
-  function show() { $('phone').hidden=false; $('alert').hidden=true; view('lock'); }
-  function hide() { $('phone').hidden=true; $('alert').hidden=true; }
+  function setPosition(position, refresh=true) {
+    $('phone').classList.toggle('at-left',position==='left');
+    try { localStorage.setItem('gtasanvn-phone-position',position); } catch {}
+    if (refresh && current==='settings') render();
+  }
+  function probe() {
+    if(demo) return;
+    clearTimeout(probeTimer);
+    $('connection').textContent='Đang kết nối';
+    probeTimer=setTimeout(() => {
+      $('connection').textContent='Chưa phản hồi';
+      note('CEF chưa nhận phản hồi từ server. Kiểm tra phiên bản client và log server.');
+    },4500);
+    emit('phone:probe');
+  }
+  function show() {
+    const reopen=!$('phone').hidden;
+    $('phone').hidden=false; $('alert').hidden=true;
+    document.body.classList.add('phone-visible');
+    if (!reopen) view('lock');
+    try { if (cef && typeof cef.set_focus==='function') cef.set_focus(true); } catch {}
+    probe();
+  }
+  function hide() {
+    clearTimeout(probeTimer);
+    $('phone').hidden=true; $('alert').hidden=true;
+    document.body.classList.remove('phone-visible');
+  }
   function clock() {
     const d = new Date(), time = d.toLocaleTimeString('vi-VN',{hour:'2-digit',minute:'2-digit'});
     $('time').textContent=time; $('big-time').textContent=time;
@@ -271,7 +331,7 @@
   for (const [key, icon, title] of catalog) {
     const b=make('button','','app-icon');
     const symbol=make('span',icon); symbol.setAttribute('aria-hidden','true');
-    b.append(symbol,document.createTextNode(title)); b.onclick=() => open(key); $('apps').append(b);
+    b.append(symbol,document.createTextNode(title)); b.onclick=() => open(key); $(['calls','sms','contacts'].includes(key)?'dock':'apps').append(b);
   }
   $('close').onclick=close; $('unlock').onclick=() => view('home');
   $('home-button').onclick=() => view('home');
@@ -281,7 +341,10 @@
   $('lock').addEventListener('pointerup',e => { if(lockTouch!==null && lockTouch-e.clientY>45) view('home'); lockTouch=null; });
   document.addEventListener('keydown',e => { if(e.key==='Escape' && !$('phone').hidden) { e.preventDefault(); close(); } });
   clock(); setInterval(clock,15000);
-  if (cef && typeof cef.on==='function') {
+  function wire() {
+    cef=window.cef;
+    if (!cef || typeof cef.on!=='function') return false;
+    cef.on('phone:online',() => { clearTimeout(probeTimer); $('connection').textContent='GTASANVN'; });
     cef.on('phone:open',show); cef.on('phone:closed',hide);
     cef.on('phone:alert',setAlert); cef.on('phone:alertClear',() => { $('alert').hidden=true; });
     cef.on('phone:notice',note); cef.on('phone:error',msg => { posting=false; clearTimeout(postTimer); note(msg); });
@@ -306,6 +369,12 @@
     cef.on('phone:historyItem',(id,from,to,text,position) => {
       data.history.push({id,from:Number(from),to:Number(to),text,position:asBool(position)});
     });
+    cef.on('phone:messageSent',number => {
+      const draft=$('sms-body');
+      if(smsDraft && Number(number)===smsDraft.to && draft && draft.value.trim()===smsDraft.message) draft.value='';
+      smsDraft=null;
+      note('Đã gửi tin nhắn.');
+    });
     cef.on('phone:historyDone',() => {
       refreshList('message-list',renderMessageItems); refreshList('map-list', el => renderMessageItems(el,true));
     });
@@ -329,7 +398,15 @@
       refreshList('comments-list',renderCommentItems);
     });
     emit('phone:ready');
-  } else if (demo) {
+    return true;
+  }
+  try { setPosition(localStorage.getItem('gtasanvn-phone-position') || 'center', false); } catch {}
+  if (!wire() && !demo) {
+    let attempts=0;
+    const bridgeTimer=setInterval(() => { if(wire() || ++attempts===30) clearInterval(bridgeTimer); },250);
+  }
+  if (demo) {
+    $('connection').textContent='Bản xem trước';
     Object.assign(data,{
       name:'Minh Nguyen',number:280821, bank:28950, cash:490, level:4,hours:12,license:true,
       job:{main:'Giao pizza',side:'Không',eligible:true,seconds:38,active:true,paycheck:135},

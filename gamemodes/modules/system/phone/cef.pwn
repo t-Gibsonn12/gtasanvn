@@ -2,7 +2,6 @@
 
 #define GT_PHONE_BROWSER (52310)
 #define GT_PHONE_URL "http://cef/gtasanvn_phone/index.html"
-#define GT_PHONE_MAX_CONTACTS (50)
 new bool:gtPhoneCreated[MAX_PLAYERS], bool:gtPhoneOpen[MAX_PLAYERS];
 new bool:gtPhoneHasWaypoint[MAX_PLAYERS], Float:gtPhoneWaypoint[MAX_PLAYERS][3];
 new gtPhoneQueryToken[MAX_PLAYERS], gtPhoneLastAction[MAX_PLAYERS], gtPhoneAlertToken[MAX_PLAYERS];
@@ -14,7 +13,12 @@ stock GTPhoneError(playerid, const message[])
     if (gtPhoneCreated[playerid]) CEF_EmitEvent(playerid, GT_PHONE_BROWSER, "phone:error", CEF_STR(message));
     return 1;
 }
-stock GTPhoneAllowed(playerid) { return Phone_Require(playerid); }
+stock GTPhoneAllowed(playerid)
+{
+    if (Phone_Require(playerid)) return 1;
+    if (gtPhoneOpen[playerid]) GTPhoneError(playerid, "Kiem tra vat pham Phone, pin va trang thai dien thoai.");
+    return 0;
+}
 
 stock bool:GTPhoneSession(playerid, uid, token)
 {
@@ -79,6 +83,8 @@ hook OnGameModeInit()
     CEF_RegisterEvent("iphone:feed", "GTIPhoneFeed");
     CEF_RegisterEvent("iphone:post", "GTIPhonePost", Argument_String, Argument_String);
     CEF_RegisterEvent("phone:ready", "GTPhoneOnReady");
+    CEF_RegisterEvent("phone:probe", "GTPhoneProbe");
+    CEF_RegisterEvent("phone:callChat", "GTPhoneCallChat", Argument_String);
     CEF_RegisterEvent("phone:close", "GTPhoneOnClose");
     CEF_RegisterEvent("phone:contacts", "GTPhoneContacts");
     CEF_RegisterEvent("phone:contactAdd", "GTPhoneContactAdd", Argument_String, Argument_Integer);
@@ -144,11 +150,32 @@ forward GTPhoneOnReady(playerid);
 public GTPhoneOnReady(playerid)
 {
     if (!gtPhoneOpen[playerid]) return 1;
+    CEF_FocusBrowser(playerid, GT_PHONE_BROWSER, true);
     CEF_EmitEvent(playerid, GT_PHONE_BROWSER, "phone:open");
     GTPhoneState(playerid);
     GTPhoneCallState(playerid);
     return 1;
 }
+forward GTPhoneProbe(playerid);
+public GTPhoneProbe(playerid)
+{
+    if (!gtPhoneCreated[playerid] || !gtPhoneOpen[playerid]) return 1;
+    CEF_EmitEvent(playerid, GT_PHONE_BROWSER, "phone:online");
+    return 1;
+}
+
+forward GTPhoneCallChat(playerid, const text[]);
+public GTPhoneCallChat(playerid, const text[])
+{
+    if (!GTPhoneAction(playerid)) return 1;
+    if (!g_PhoneConnected[playerid] || !strlen(text) || strlen(text) > 120)
+        return GTPhoneError(playerid, "Can cuoc goi dang ket noi va tin nhan 1-120 byte.");
+    new message[121];
+    format(message, sizeof message, "%s", text);
+    cmd_p(playerid, message);
+    return 1;
+}
+
 forward GTPhoneOnClose(playerid);
 public GTPhoneOnClose(playerid) { GTPhoneClose(playerid); return 1; }
 forward GTPhoneRefresh(playerid);
@@ -157,7 +184,7 @@ public GTPhoneRefresh(playerid) { if (GTPhoneAllowed(playerid)) GTPhoneState(pla
 forward GTPhoneContacts(playerid);
 public GTPhoneContacts(playerid)
 {
-    if (!GTPhoneAllowed(playerid)) return 1;
+    if (!gtPhoneOpen[playerid] || !GTPhoneAllowed(playerid)) return 1;
     new query[256];
     mysql_format(g_DatabaseHandle, query, sizeof query, "SELECT contact_id AS id,contact_name AS name,phone_number AS number FROM phone_contact_entries WHERE character_id=%d ORDER BY contact_name LIMIT 50", GetPlayerCharacterID(playerid));
     mysql_tquery(g_DatabaseHandle, query, "GTPhoneContactsLoaded", "iii", playerid, GetPlayerCharacterID(playerid), gtPhoneQueryToken[playerid]);
@@ -166,7 +193,7 @@ public GTPhoneContacts(playerid)
 forward GTPhoneContactsLoaded(playerid, uid, token);
 public GTPhoneContactsLoaded(playerid, uid, token)
 {
-    if (!IsPlayerConnected(playerid) || !gtPhoneCreated[playerid] || GetPlayerCharacterID(playerid) != uid || gtPhoneQueryToken[playerid] != token) return 1;
+    if (!GTPhoneSession(playerid, uid, token) || !gtPhoneOpen[playerid]) return 1;
     new rows=GTPhoneRowCount(), id, number, name[32];
     CEF_EmitEvent(playerid, GT_PHONE_BROWSER, "phone:contactsClear");
     for (new i=0; i<rows; i++)
@@ -409,7 +436,8 @@ public GTPhoneVehicles(playerid)
 forward GTPhoneVehicleLocate(playerid, slot, db);
 public GTPhoneVehicleLocate(playerid, slot, db)
 {
-    if (!GTPhoneAction(playerid) || !GTPhoneVehicleSlot(playerid, slot, db)) return 1;
+    if (!GTPhoneAction(playerid)) return 1;
+    if (!GTPhoneVehicleSlot(playerid, slot, db)) return GTPhoneError(playerid, "Xe khong con kha dung. Hay mo lai Garage.");
     if (IsPlayerCheckpointActive(playerid) || GetPlayerInterior(playerid) || GetPlayerVirtualWorld(playerid) ||
         PlayerVehicle[playerid][slot][pvInterior] || PlayerVehicle[playerid][slot][pvVirtualWorld])
         return GTPhoneError(playerid, "Khong the dat GPS tai day hoac dang co checkpoint.");
@@ -420,17 +448,20 @@ public GTPhoneVehicleLocate(playerid, slot, db)
 forward GTPhoneVehiclePark(playerid, slot, db);
 public GTPhoneVehiclePark(playerid, slot, db)
 {
-    if (!GTPhoneAction(playerid) || !GTPhoneVehicleSlot(playerid, slot, db)) return 1;
-    SimpleVehicle_Park(playerid, slot);
+    if (!GTPhoneAction(playerid)) return 1;
+    if (!GTPhoneVehicleSlot(playerid, slot, db)) return GTPhoneError(playerid, "Xe khong con kha dung. Hay mo lai Garage.");
+    if (!SimpleVehicle_Park(playerid, slot)) return GTPhoneError(playerid, "Khong luu duoc cho do. Kiem tra thong bao trong game.");
     return GTPhoneVehicles(playerid);
 }
 
 forward GTPhoneVehicleStorage(playerid, slot, db, retrieve);
 public GTPhoneVehicleStorage(playerid, slot, db, retrieve)
 {
-    if (!GTPhoneAction(playerid) || !GTPhoneVehicleSlot(playerid, slot, db)) return 1;
-    if (retrieve == 1) SimpleVehicle_Spawn(playerid, slot);
-    else if (retrieve == 0) SimpleVehicle_Store(playerid, slot, true, true);
+    if (!GTPhoneAction(playerid)) return 1;
+    if (!GTPhoneVehicleSlot(playerid, slot, db)) return GTPhoneError(playerid, "Xe khong con kha dung. Hay mo lai Garage.");
+    if (retrieve != 0 && retrieve != 1) return 1;
+    new result = retrieve ? SimpleVehicle_Spawn(playerid, slot) : SimpleVehicle_Store(playerid, slot, true, true);
+    if (!result) return GTPhoneError(playerid, "Khong the lay hoac cat xe. Kiem tra thong bao trong game.");
     return GTPhoneVehicles(playerid);
 }
 
@@ -467,7 +498,7 @@ public GTPhoneAfterMessage(playerid, uid, token, number)
     }
     if (GTPhoneSession(playerid, uid, token) && gtPhoneOpen[playerid])
     {
-        GTPhoneNotice(playerid, "Da gui tin nhan.");
+        CEF_EmitEvent(playerid, GT_PHONE_BROWSER, "phone:messageSent", CEF_INT(number));
         GTPhoneHistory(playerid);
     }
     for (new target; target < MAX_PLAYERS; target++)

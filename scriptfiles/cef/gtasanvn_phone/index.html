@@ -5,12 +5,12 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src 'self' https:; style-src 'self'; script-src 'self'; connect-src 'none'; object-src 'none'; base-uri 'none'">
   <title>Điện thoại GTASANVN</title>
-  <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="style.css?v=2">
 </head>
 <body>
   <aside id="alert" class="alert" role="status" hidden><strong></strong><p></p></aside>
   <main id="phone" class="phone" aria-label="Điện thoại GTASANVN" hidden>
-    <header class="status"><time id="time"></time><span aria-label="Mạng GTASANVN">GTASANVN</span><button id="close" aria-label="Đóng điện thoại">×</button></header>
+    <header class="status"><time id="time"></time><span class="sensor" aria-hidden="true"></span><span id="connection" role="status">Đang kết nối</span><button id="close" aria-label="Đóng điện thoại">×</button></header>
     <section id="lock" class="lock">
       <time id="big-time"></time>
       <div id="date"></div>
@@ -18,7 +18,7 @@
       <button id="unlock" class="unlock">Vuốt lên hoặc chạm để mở</button>
     </section>
     <section id="home" class="home" hidden>
-      <nav id="apps" class="apps" aria-label="Ứng dụng"></nav>
+      <nav id="apps" class="apps" aria-label="Ứng dụng"></nav><nav id="dock" class="dock" aria-label="Liên lạc"></nav>
     </section>
     <section id="app" class="app" hidden>
       <header class="app-header"><button id="back" aria-label="Quay lại">‹</button><h1 id="title"></h1></header>
@@ -27,6 +27,6 @@
     <p id="toast" class="toast" role="status" hidden></p>
     <button id="home-button" class="home-button" aria-label="Về màn hình chính"></button>
   </main>
-  <script src="script.js" defer></script>
+  <script src="script.js?v=2" defer></script>
 </body>
 </html>

@@ -44,3 +44,30 @@ textarea.field{min-height:72px;resize:vertical}
 .home-button::after{content:"";display:block;margin:auto;width:100px;height:4px;border-radius:999px;background:#fff}
 .phone.app-open .home-button{background:#f2f2f0}
 .phone.app-open .home-button::after{background:#343638}
+
+/* Compact overlay sized for landscape mobile and desktop. */
+body.phone-visible::before{content:"";position:fixed;inset:0;background:#131a273b;pointer-events:none}
+.phone{left:50%;top:50%;right:auto;bottom:auto;transform:translate(-50%,-50%);width:min(326px,calc(100vw - 24px),64vh);height:min(644px,calc(100vh - 20px));border:5px solid #141923;border-radius:clamp(19px,5vh,39px);box-shadow:0 8px 38px #0008;touch-action:manipulation}
+.phone.at-left{left:clamp(10px,3vw,42px);transform:translateY(-50%)}
+.status{min-height:33px;padding:5px 11px;gap:7px}
+#connection{font-size:9px;margin-left:auto;text-align:right}
+.status button{min-width:30px;min-height:30px}
+.sensor{position:absolute;left:50%;transform:translateX(-50%);width:42px;height:10px;border-radius:20px;background:#131923}
+.home{justify-content:flex-end;padding:5px 8px}
+.apps,.dock{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;padding:8px}
+.dock{background:#e1e5f23c;border:1px solid #e7ebff40;border-radius:18px;margin:4px 0}
+.app-icon span{width:clamp(27px,7vh,48px);border-radius:28%;font-size:clamp(16px,4vh,24px)}
+.apps .app-icon span{background:#dbe2f8;color:#253954}
+.apps .app-icon:nth-child(2) span{background:#f8dfbb;color:#644121}
+.apps .app-icon:nth-child(3) span{background:#eedaf1;color:#59235f}
+.dock .app-icon span{background:#cfe8d6;color:#244531}
+.dock .app-icon:nth-child(2) span{background:#d4e9f6;color:#294660}
+.dock .app-icon:nth-child(3) span{background:#f2e4c8;color:#5b4421}
+.action{min-height:34px}.app-header button{min-width:36px;min-height:34px}
+.dialpad{display:grid;grid-template-columns:repeat(3,1fr);gap:5px;margin-bottom:7px}
+.dialpad .action{margin:0;background:#e9edf4;border-radius:50px;font-weight:700}
+.dialpad .action:nth-child(10){grid-column:2}
+.dial-number{text-align:center;font-size:18px}
+.bubble-out{margin-left:16px;background:#e0edf8}.bubble-in{margin-right:16px}
+.social-card{padding:12px 10px}.social-card .social-photo{max-height:260px;object-fit:cover;aspect-ratio:4/3}
+@media(max-height:430px){.status{min-height:29px;padding:3px 10px}.app-header{padding:3px 7px}.content{padding:7px 9px}.lock{padding-top:4vh}.apps,.dock{gap:6px;padding:5px}.app-icon{font-size:9px}.home-button{height:14px}}
