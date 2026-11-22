@@ -1,5 +1,6 @@
 hostname = 127.0.0.1
-username = lsrp
-database = lsrp
+username = gtasanvn
+database = gtasanvn
 server_port = 3306
+# Use the existing MySQL user and GTASANVN database on your server.
 # Add a password line for accounts with a password.
