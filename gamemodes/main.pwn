@@ -64,7 +64,10 @@
 #endif
 #include <samp_bcrypt>
 
-// YSI
+// YSI generates hook dispatch code when the server starts.
+#if !defined CGEN_MEMORY
+    #define CGEN_MEMORY (32768)
+#endif
 #include <YSI_Coding\y_hooks>
 #include <zcmd>
 
