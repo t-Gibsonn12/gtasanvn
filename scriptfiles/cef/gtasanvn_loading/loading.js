@@ -6,9 +6,8 @@ const fill = amount => logo.style.setProperty('--fill', (100 - amount) + '%');
 let complete = false;
 function assetReady() {
   if (complete) return;
-  fill(46);
   if (cef?.emit) cef.emit('loading:assetReady');
-  else if (new URLSearchParams(location.search).has('demo')) setTimeout(() => fill(100), 900);
+  else if (new URLSearchParams(location.search).has('demo')) setTimeout(() => fill(100), 100);
 }
 cef?.on('loading:complete', () => {
   if (complete) return;

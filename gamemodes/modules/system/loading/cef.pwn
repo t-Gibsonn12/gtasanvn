@@ -2,6 +2,9 @@
 
 #define LOADING_BROWSER (52312)
 #define LOADING_RESOURCE "gtasanvn_loading"
+#define LOADING_DISPLAY_MS (3700)
+
+static Text:s_LoadingBackdrop = Text:INVALID_TEXT_DRAW;
 
 static bool:s_LoadingPending[MAX_PLAYERS];
 static bool:s_LoadingBrowser[MAX_PLAYERS];
@@ -15,6 +18,7 @@ public Loading_Finish(playerid, session)
         s_LoadingSession[playerid] != session) return 1;
 
     s_LoadingPending[playerid] = false;
+    if (s_LoadingBackdrop != Text:INVALID_TEXT_DRAW) TextDrawHideForPlayer(playerid, s_LoadingBackdrop);
     if (s_LoadingBrowser[playerid])
     {
         s_LoadingBrowser[playerid] = false;
@@ -35,12 +39,18 @@ stock Loading_Begin(playerid)
     s_LoadingPending[playerid] = true;
     s_LoadingBrowser[playerid] = false;
     s_LoadingEnding[playerid] = false;
+    if (s_LoadingBackdrop != Text:INVALID_TEXT_DRAW) TextDrawShowForPlayer(playerid, s_LoadingBackdrop);
     Loading_Wait(playerid, 4500);
     return 1;
 }
 
 hook OnGameModeInit()
 {
+    // The client can render this before its CEF browser is ready.
+    s_LoadingBackdrop = TextDrawCreate(0.0, 0.0, "LD_SPAC:white");
+    TextDrawFont(s_LoadingBackdrop, TEXT_DRAW_FONT_SPRITE_DRAW);
+    TextDrawTextSize(s_LoadingBackdrop, 640.0, 480.0);
+    TextDrawColor(s_LoadingBackdrop, 0x000000FF);
     CEF_AddResource(LOADING_RESOURCE);
     CEF_RegisterEvent("loading:assetReady", "Loading_AssetReady");
     return 1;
@@ -82,8 +92,9 @@ public Loading_AssetReady(playerid)
     if (!s_LoadingPending[playerid] || !s_LoadingBrowser[playerid] ||
         s_LoadingEnding[playerid]) return 1;
     s_LoadingEnding[playerid] = true;
+    if (s_LoadingBackdrop != Text:INVALID_TEXT_DRAW) TextDrawHideForPlayer(playerid, s_LoadingBackdrop);
     CEF_EmitEvent(playerid, LOADING_BROWSER, "loading:complete");
-    SetTimerEx("Loading_Finish", 800, false, "dd", playerid, s_LoadingSession[playerid]);
+    Loading_Wait(playerid, LOADING_DISPLAY_MS);
     return 1;
 }
 
