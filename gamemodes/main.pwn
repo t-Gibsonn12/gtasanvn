@@ -167,9 +167,6 @@ forward Trucking_ShowEmployeeCompanyMenu(playerid);
 // modules/system/vehicles/ as a legacy reference, but is not included here.
 // Start with the small load/list flow and add features one at a time.
 #include "modules/system/vehicles/simple.pwn"
-#if defined GTASANVN_CEF_PHONE
-    #include "modules/system/phone/cef.pwn"
-#endif
 #include "modules/system/vehicles/controls.pwn"
 #include "modules/system/vehicles/dealership.pwn"
 #include "modules/system/tutorial/core.pwn"
@@ -182,6 +179,7 @@ forward Trucking_ShowEmployeeCompanyMenu(playerid);
 #include "modules/system/vehicles/service_stations.pwn"
 
 #if defined GTASANVN_CEF_PHONE
+    #include "modules/system/phone/cef.pwn"
     #include "modules/system/menu/cef.pwn"
 #endif
 

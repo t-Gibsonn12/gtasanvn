@@ -1,73 +1,133 @@
-:root{font-family:system-ui,-apple-system,"Segoe UI",sans-serif;color:#202428;color-scheme:light;font-size:14px}
-*{box-sizing:border-box}
-[hidden]{display:none!important}
-body{margin:0;background:transparent;overflow:hidden}
-button,input,textarea{font:inherit}
-button{cursor:pointer}
-button:focus-visible,input:focus-visible,textarea:focus-visible{outline:2px solid #6487ad;outline-offset:2px}
-.phone{position:fixed;right:clamp(12px,4vw,70px);bottom:clamp(12px,4vh,60px);width:min(345px,calc(100vw - 24px));height:min(650px,calc(100vh - 30px));overflow:hidden;border:5px solid #25282a;border-radius:36px;background:#535a62 url("wallpaper.jpg") center/cover;box-shadow:0 14px 45px #0007;color:white;display:flex;flex-direction:column}
-.phone::before{content:"";position:absolute;inset:0;background:linear-gradient(#1e242752,#24252e20 40%,#18191894);pointer-events:none}
-.status{position:relative;z-index:2;display:flex;align-items:center;justify-content:space-between;padding:10px 18px;font-size:12px;min-height:38px}
-.status button,.app-header button{background:none;border:0;color:inherit;padding:0 4px;font-size:22px;line-height:1}
-.lock,.home{position:relative;display:flex;flex:1;flex-direction:column;min-height:0}
-.lock{text-align:center;padding:8vh 18px 0;align-items:stretch;touch-action:none}
-.lock time{font-size:clamp(48px,9vh,82px);font-weight:350;line-height:1.05;letter-spacing:-.065em}
-.lock #date{margin-top:9px;font-size:16px}
-.unlock{margin:auto auto 9px;background:#202328b8;color:white;border:1px solid #ffffff21;border-radius:999px;padding:8px 15px;font-size:12px}
-.lock-alert{background:#f6f5f2e8;color:#242628;border:0;border-radius:17px;text-align:left;padding:11px 14px;margin:auto 0 12px}
-.lock-alert span{display:block;margin-top:4px;color:#4b5156}
-.home{justify-content:flex-end;overflow:auto}
-.apps{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:clamp(7px,2vh,15px);padding:15px 13px 10px}
-.app-icon{display:flex;flex-direction:column;align-items:center;gap:5px;background:none;border:0;color:#fff;font-size:11px;padding:0}
-.app-icon span{width:clamp(37px,8vh,57px);aspect-ratio:1;display:grid;place-items:center;border-radius:16px;background:#dedbd1;color:#292b2b;font-family:"Segoe UI Symbol",system-ui,sans-serif;font-size:25px;box-shadow:0 2px 5px #0002}
-.app-icon:nth-child(3n+1) span{background:#d3d6c8}.app-icon:nth-child(3n) span{background:#cbd2db}
-.app{position:relative;flex:1;min-height:0;background:#f2f2f0;color:#252a2e;display:flex;flex-direction:column;overflow:hidden}
-.app-header{display:flex;align-items:center;gap:14px;padding:12px 15px 10px;border-bottom:1px solid #ddd}
-.app-header h1{font-size:18px;margin:0;font-weight:650}
-.app-header button{font-size:30px;color:#405e7f}
-.content{overflow:auto;flex:1;padding:13px 14px 16px}
-.content p{line-height:1.4;margin:7px 0;white-space:pre-wrap;overflow-wrap:anywhere}
-.content h2{font-size:14px;margin:14px 0 8px}
-.card{background:white;border:1px solid #e2e2e0;border-radius:15px;padding:11px 12px;margin-bottom:9px;overflow-wrap:anywhere}
-.subtle{color:#586064;font-size:12px}
-.field{display:block;width:100%;padding:10px;color:#191e22;background:white;border:1px solid #cfd0d0;border-radius:10px;margin-bottom:8px}
-textarea.field{min-height:72px;resize:vertical}
-.action{display:inline-block;border:0;border-radius:9px;background:#e3e7ec;color:#294562;font-weight:600;padding:8px 10px;margin:4px 4px 4px 0}
-.primary{background:#33485e;color:white}
-.action:disabled{opacity:.6;cursor:default}
-.social-photo{display:block;width:100%;max-height:225px;object-fit:contain;border-radius:9px;background:#f0f0ef;margin-top:8px}
-.toast,.alert{font-size:13px;color:#292d31;background:#f3f2efe8;box-shadow:0 3px 16px #0003;border-radius:13px;padding:9px 12px;margin:0}
-.toast{position:absolute;bottom:28px;left:11px;right:11px;z-index:4;pointer-events:none}
-.alert{position:fixed;right:clamp(12px,4vw,70px);top:6vh;width:min(315px,calc(100vw - 24px))}
-.alert p{margin:4px 0 0}
-.home-button{position:relative;flex:none;width:100%;height:19px;border:0;background:none}
-.home-button::after{content:"";display:block;margin:auto;width:100px;height:4px;border-radius:999px;background:#fff}
-.phone.app-open .home-button{background:#f2f2f0}
-.phone.app-open .home-button::after{background:#343638}
-
-/* Compact overlay sized for landscape mobile and desktop. */
-body.phone-visible::before{content:"";position:fixed;inset:0;background:#131a273b;pointer-events:none}
-.phone{left:50%;top:50%;right:auto;bottom:auto;transform:translate(-50%,-50%);width:min(326px,calc(100vw - 24px),64vh);height:min(644px,calc(100vh - 20px));border:5px solid #141923;border-radius:clamp(19px,5vh,39px);box-shadow:0 8px 38px #0008;touch-action:manipulation}
-.phone.at-left{left:clamp(10px,3vw,42px);transform:translateY(-50%)}
-.status{min-height:33px;padding:5px 11px;gap:7px}
-#connection{font-size:9px;margin-left:auto;text-align:right}
-.status button{min-width:30px;min-height:30px}
-.sensor{position:absolute;left:50%;transform:translateX(-50%);width:42px;height:10px;border-radius:20px;background:#131923}
-.home{justify-content:flex-end;padding:5px 8px}
-.apps,.dock{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;padding:8px}
-.dock{background:#e1e5f23c;border:1px solid #e7ebff40;border-radius:18px;margin:4px 0}
-.app-icon span{width:clamp(27px,7vh,48px);border-radius:28%;font-size:clamp(16px,4vh,24px)}
-.apps .app-icon span{background:#dbe2f8;color:#253954}
-.apps .app-icon:nth-child(2) span{background:#f8dfbb;color:#644121}
-.apps .app-icon:nth-child(3) span{background:#eedaf1;color:#59235f}
-.dock .app-icon span{background:#cfe8d6;color:#244531}
-.dock .app-icon:nth-child(2) span{background:#d4e9f6;color:#294660}
-.dock .app-icon:nth-child(3) span{background:#f2e4c8;color:#5b4421}
-.action{min-height:34px}.app-header button{min-width:36px;min-height:34px}
-.dialpad{display:grid;grid-template-columns:repeat(3,1fr);gap:5px;margin-bottom:7px}
-.dialpad .action{margin:0;background:#e9edf4;border-radius:50px;font-weight:700}
-.dialpad .action:nth-child(10){grid-column:2}
-.dial-number{text-align:center;font-size:18px}
-.bubble-out{margin-left:16px;background:#e0edf8}.bubble-in{margin-right:16px}
-.social-card{padding:12px 10px}.social-card .social-photo{max-height:260px;object-fit:cover;aspect-ratio:4/3}
-@media(max-height:430px){.status{min-height:29px;padding:3px 10px}.app-header{padding:3px 7px}.content{padding:7px 9px}.lock{padding-top:4vh}.apps,.dock{gap:6px;padding:5px}.app-icon{font-size:9px}.home-button{height:14px}}
+:root {
+  color-scheme: dark;
+  font: 14px system-ui, sans-serif;
+  color: #f5f7ff;
+  --muted: #b3becf;
+  --panel: #18212d;
+  --edge: #2e3b4d;
+  --accent: #85c7ff;
+}
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+body { margin: 0; overflow: hidden; background: transparent; }
+body.phone-visible::before {
+  content: ""; position: fixed; inset: 0; background: #07111c55; pointer-events: none;
+}
+button, input, textarea { font: inherit; }
+button { cursor: pointer; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.phone {
+  position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
+  width: min(358px, calc(100vw - 22px), 82vh);
+  height: min(686px, calc(100vh - 20px));
+  border: 5px solid #14171e; border-radius: clamp(21px, 6vh, 38px);
+  box-shadow: 0 0 0 1px #606a79, 0 17px 45px #03061199;
+  display: flex; flex-direction: column; overflow: hidden;
+  background:
+    radial-gradient(ellipse at 25% 0%, #375eaf 0%, transparent 49%),
+    radial-gradient(ellipse at 110% 55%, #d15d9d 0%, transparent 50%),
+    linear-gradient(146deg, #10162d 24%, #183565 43%, #413064 61%, #171a38 85%);
+  color: #fff; touch-action: manipulation;
+}
+.phone.at-left { left: clamp(10px, 3vw, 42px); transform: translateY(-50%); }
+.status {
+  position: relative; flex: none; min-height: 32px; padding: 5px 10px 4px 15px;
+  display: flex; gap: 4px; align-items: center; font-size: 11px; font-weight: 650;
+}
+.phone.app-open .status, .phone.app-open .home-button { background: #101722; }
+#connection { margin-left: auto; text-align: right; font-size: 9px; }
+.sensor {
+  position: absolute; left: 50%; transform: translateX(-50%); width: 47px; height: 9px;
+  border-radius: 999px; background: #080b11; box-shadow: inset 0 0 0 1px #0004;
+}
+.status button, .app-header button { border: 0; background: transparent; color: inherit; font-size: 22px; line-height: 1; }
+.status button { min-width: 27px; min-height: 25px; }
+.lock, .home, .app { display: flex; flex-direction: column; flex: 1; min-height: 0; }
+.lock { text-align: center; padding: 7vh 16px 0; touch-action: none; }
+.lock time { font-size: clamp(48px, 10vh, 86px); font-weight: 480; line-height: 1; letter-spacing: -.06em; }
+.lock #date { margin-top: 8px; }
+.unlock, .lock-alert {
+  border-radius: 17px; border: 1px solid #b7d5ff38; padding: 8px 12px;
+  background: #0b1425c7; color: #fff;
+}
+.unlock { margin: auto auto 5px; font-size: 12px; }
+.lock-alert { margin: auto 0 9px; text-align: left; }
+.lock-alert span { display: block; margin-top: 3px; color: #d3e0f8; }
+.home { overflow: auto; padding: 8px 10px 4px; }
+.today {
+  padding: 13px; border-radius: 18px; background: #101b33b5; border: 1px solid #9db6dd52;
+  flex: none; overflow: hidden;
+}
+.eyebrow { color: #bdd9ff; font-weight: 700; letter-spacing: .14em; font-size: 9px; }
+.today strong { display: block; margin-top: 2px; font-size: clamp(14px, 3.5vh, 23px); overflow-wrap: anywhere; }
+.today .jump { margin: 7px 0 0; padding: 5px 8px; width: 100%; text-align: left; min-height: 29px; }
+.apps, .dock { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); padding: 12px 0; gap: 10px 3px; }
+.dock {
+  grid-template-columns: repeat(3,minmax(0,1fr)); border-radius: 20px; margin-top: auto;
+  padding: 8px 4px; background: #bedaff35; border: 1px solid #dce9ff48; flex: none;
+}
+.app-icon { position: relative; display: flex; align-items: center; flex-direction: column; gap: 4px; padding: 0; border: 0; background: none; color: #fff; font-size: 10px; line-height: 1.2; }
+.app-glyph {
+  display: grid; place-items: center; width: clamp(29px, 7vh, 49px); aspect-ratio: 1;
+  border-radius: 28%; font-size: clamp(16px, 4vh, 28px); font-weight: 700;
+  background: linear-gradient(155deg, var(--light), var(--dark)); border: 1px solid #ffffff20;
+  box-shadow: 0 2px 7px #0b061c59; transition: transform .15s ease;
+}
+.app-icon:hover .app-glyph, .app-icon:focus-visible .app-glyph { transform: translateY(-2px); }
+.app-icon[data-tone="blue"] { --light: #2187e6; --dark: #155095; }
+.app-icon[data-tone="green"] { --light: #209f70; --dark: #0a6349; }
+.app-icon[data-tone="amber"] { --light: #a97228; --dark: #79430c; }
+.app-icon[data-tone="red"] { --light: #c34f64; --dark: #842d47; }
+.app-icon[data-tone="purple"] { --light: #a65dbc; --dark: #663c93; }
+.app-icon[data-tone="slate"] { --light: #617c9c; --dark: #33485e; }
+.app-icon[data-tone="indigo"] { --light: #596cc6; --dark: #384699; }
+.badge {
+  position: absolute; top: -4px; left: 59%; min-width: 16px; border-radius: 999px; padding: 2px 4px;
+  background: #bd3049; color: white; font-size: 9px; font-weight: 700;
+}
+.app { background: #101722; overflow: hidden; }
+.app-header { display: flex; align-items: center; gap: 8px; padding: 4px 10px 6px; border-bottom: 1px solid #263346; }
+.app-header button { color: var(--accent); min-width: 34px; min-height: 32px; font-size: 30px; }
+.app-header h1 { font-size: 18px; font-weight: 680; margin: 0; }
+.content { overflow: auto; flex: 1; padding: 11px 13px 15px; }
+.content p { line-height: 1.4; margin: 6px 0; white-space: pre-wrap; overflow-wrap: anywhere; }
+.content h2 { font-size: 14px; margin: 13px 0 8px; }
+.card { background: var(--panel); border: 1px solid var(--edge); border-radius: 14px; padding: 10px 11px; margin-bottom: 8px; overflow-wrap: anywhere; }
+.subtle { color: var(--muted); font-size: 12px; }
+.field { display: block; padding: 9px; width: 100%; border: 1px solid var(--edge); border-radius: 10px; margin-bottom: 8px; background: #1b2635; color: #fff; }
+.field::placeholder { color: #aebaca; }
+textarea.field { min-height: 66px; resize: vertical; }
+.action { min-height: 33px; color: #eaf2ff; background: #26384e; border: 0; border-radius: 9px; padding: 6px 9px; margin: 3px 4px 3px 0; font-weight: 620; font-size: 12px; }
+.action.primary { background: #1266b0; color: #fff; }
+.action:hover { filter: brightness(1.16); }
+.action:disabled { cursor: default; opacity: .6; }
+.bubble-out { margin-left: 14px; background: #1c4062; }
+.bubble-in { margin-right: 14px; }
+.compose summary { cursor: pointer; font-weight: 620; }
+.compose[open] summary { margin-bottom: 9px; }
+.social-photo { display: block; width: 100%; max-height: 240px; aspect-ratio: 4/3; object-fit: cover; border-radius: 9px; background: #232a38; margin-top: 8px; }
+.dialpad { display: grid; grid-template-columns: repeat(3,1fr); justify-items: center; gap: 5px; margin-bottom: 7px; }
+.dialpad .action { margin: 0; width: clamp(34px, 8vh, 49px); min-height: 0; aspect-ratio: 1; border-radius: 50%; font-size: 18px; }
+.dial-number { text-align: center; font-size: 18px; }
+#call-start, #call-pickup { background: #08774b; }
+#call-hangup { background: #9b2f45; }
+.gps-plot { display: block; width: 100%; border-radius: 12px; background: #142637; }
+.bank-card { background: linear-gradient(135deg,#173872,#43367d); color: white; }
+.bank-card .subtle { color: #d8e3ff; }
+.balance { font-size: 25px; font-weight: 700; }
+.credit { color: #8ae5b0; }
+.debit { color: #ff9fb0; }
+.toast, .alert { color: #edf3ff; border: 1px solid #4b5970; background: #162238f5; box-shadow: 0 3px 16px #0005; border-radius: 13px; padding: 9px 12px; margin: 0; font-size: 13px; }
+.toast { position: absolute; left: 10px; right: 10px; bottom: 23px; z-index: 4; pointer-events: none; }
+.alert { position: fixed; right: 4vw; top: 6vh; width: min(310px,calc(100vw - 26px)); }
+.alert p { margin: 4px 0 0; }
+.home-button { position: relative; flex: none; width: 100%; height: 20px; border: 0; background: none; }
+.home-button::after { content: ""; display: block; width: 93px; height: 4px; border-radius: 999px; background: #f5f8ff; margin: auto; }
+@media (max-height: 510px) {
+  .today { padding: 6px 9px; border-radius: 12px; }
+  .today .jump { margin-top: 3px; min-height: 24px; padding: 3px 5px; font-size: 10px; }
+  .apps,.dock { padding: 5px 2px; gap: 6px 2px; }
+  .app-icon { font-size: 9px; }
+  .content { padding: 7px 9px; }
+  .home-button { height: 16px; }
+}

@@ -6,6 +6,15 @@ new bool:gtPhoneCreated[MAX_PLAYERS], bool:gtPhoneOpen[MAX_PLAYERS];
 new bool:gtPhoneHasWaypoint[MAX_PLAYERS], Float:gtPhoneWaypoint[MAX_PLAYERS][3];
 new gtPhoneQueryToken[MAX_PLAYERS], gtPhoneLastAction[MAX_PLAYERS], gtPhoneAlertToken[MAX_PLAYERS];
 
+enum E_PHONE_HUB_ACTION
+{
+    PHONE_HUB_INVENTORY,
+    PHONE_HUB_GUIDE,
+    PHONE_HUB_ATM,
+    PHONE_HUB_TUTORIAL_GPS,
+    PHONE_HUB_CLEAR_GPS
+};
+
 stock GTPhoneRowCount() { return cache_num_rows(); }
 
 stock GTPhoneError(playerid, const message[])
@@ -48,7 +57,7 @@ stock GTPhoneState(playerid)
 }
 public GTPhoneCefOpen(playerid)
 {
-    if (!gtPhoneCreated[playerid] || !g_PhonePowered[playerid] || !GTPhoneAllowed(playerid)) return 0;
+    if (GetPlayerDialogID(playerid) != INVALID_DIALOG_ID || !gtPhoneCreated[playerid] || !g_PhonePowered[playerid] || !GTPhoneAllowed(playerid)) return 0;
     if (gtPhoneOpen[playerid]) return GTPhoneClose(playerid);
     gtPhoneOpen[playerid] = true;
     CEF_SetBrowserVisible(playerid, GT_PHONE_BROWSER, true);
@@ -95,6 +104,11 @@ hook OnGameModeInit()
     CEF_RegisterEvent("phone:pickup", "GTPhonePickup");
     CEF_RegisterEvent("phone:hangup", "GTPhoneHangup");
     CEF_RegisterEvent("phone:refresh", "GTPhoneRefresh");
+    CEF_RegisterEvent("phone:hub", "GTPhoneHub", Argument_Integer);
+    CEF_RegisterEvent("phone:hubData", "GTPhoneHubData");
+    CEF_RegisterEvent("phone:gpsList", "GTPhoneGPSList");
+    CEF_RegisterEvent("phone:gpsTo", "GTPhoneGPSTo", Argument_Integer);
+    CEF_RegisterEvent("phone:bankHistory", "GTPhoneBankHistory");
     CEF_RegisterEvent("phone:profile", "GTPhoneProfile");
     CEF_RegisterEvent("phone:settings", "GTPhoneSetting", Argument_Integer);
     CEF_RegisterEvent("phone:jobs", "GTPhoneJobs");
@@ -356,8 +370,8 @@ stock GTPhoneMarkLocation(playerid, Float:x, Float:y, Float:z)
 {
     if (GetPlayerVirtualWorld(playerid) || GetPlayerInterior(playerid))
         return GTPhoneError(playerid, "Hay ra ngoai truoc khi bat GPS.");
-    if (IsPlayerCheckpointActive(playerid))
-        return GTPhoneError(playerid, "Dang co checkpoint. Hay hoan thanh hoac dung /cancelcp truoc.");
+    if (IsPlayerCheckpointActive(playerid) && !GTPhoneClearWaypoint(playerid))
+        return GTPhoneError(playerid, "Dang co checkpoint nhiem vu. Hay hoan thanh muc tieu truoc.");
     gtPhoneWaypoint[playerid][0] = x;
     gtPhoneWaypoint[playerid][1] = y;
     gtPhoneWaypoint[playerid][2] = z;
@@ -376,7 +390,7 @@ public GTPhoneProfile(playerid)
     GTPhoneState(playerid);
     CEF_EmitEvent(playerid, GT_PHONE_BROWSER, "phone:profileData",
         CEF_INT(GetPlayerMoney(playerid)), CEF_INT(GetPlayerScore(playerid)),
-        CEF_INT(g_PhoneBattery[playerid]), CEF_INT(0));
+        CEF_INT(g_PhoneBattery[playerid]), CEF_BOOL(Tutorial_HasIDCard(playerid)));
     return 1;
 }
 
@@ -397,9 +411,18 @@ public GTPhonePizza(playerid, action)
 {
     if (!GTPhoneAction(playerid)) return 1;
     if (!action) return GTPhoneMarkLocation(playerid, PIZZA_NPC_X, PIZZA_NPC_Y, PIZZA_NPC_Z);
-    if (action != 1 || !Pizza_IsEmployee(playerid)) return 1;
+    if (action == 2 && Pizza_IsOnShift(playerid))
+    {
+        GTPhoneClose(playerid);
+        return Pizza_StartDelivery(playerid);
+    }
+    if (action != 1) return 1;
+    if (GetPlayerVirtualWorld(playerid) || GetPlayerInterior(playerid) ||
+        GetPlayerState(playerid) != PLAYER_STATE_ONFOOT ||
+        !IsPlayerInRangeOfPoint(playerid, PIZZA_INTERACT_RANGE, PIZZA_NPC_X, PIZZA_NPC_Y, PIZZA_NPC_Z))
+        return GTPhoneError(playerid, "Hay den gap quan ly Pizza Stack de tuong tac.");
     GTPhoneClose(playerid);
-    return Pizza_HandleYInteraction(playerid);
+    return Pizza_HandleRecruiterInteraction(playerid);
 }
 
 stock bool:GTPhoneVehicleSlot(playerid, slot, id)
@@ -483,13 +506,13 @@ stock GTPhoneSendMessage(playerid, number, const message[], bool:position)
     mysql_format(g_DatabaseHandle, query, sizeof query,
         "INSERT INTO gt_phone_messages(sender_uid,recipient_uid,sender_number,recipient_number,body,has_position,x,y,z) SELECT %d,character_id,%d,phone_number,'%e',%d,%f,%f,%f FROM character_phone_profiles WHERE phone_number=%d AND character_id<>%d AND powered=1 LIMIT 1",
         uid, ownNumber, message, _:position, x, y, z, number, uid);
-    if (!mysql_tquery(g_DatabaseHandle, query, "GTPhoneAfterMessage", "iiii",
-        playerid, uid, gtPhoneQueryToken[playerid], number)) return GTPhoneError(playerid, "Khong the gui tin nhan.");
+    if (!mysql_tquery(g_DatabaseHandle, query, "GTPhoneAfterMessage", "iiiii",
+        playerid, uid, gtPhoneQueryToken[playerid], number, ownNumber)) return GTPhoneError(playerid, "Khong the gui tin nhan.");
     return 1;
 }
 
-forward GTPhoneAfterMessage(playerid, uid, token, number);
-public GTPhoneAfterMessage(playerid, uid, token, number)
+forward GTPhoneAfterMessage(playerid, uid, token, number, senderNumber);
+public GTPhoneAfterMessage(playerid, uid, token, number, senderNumber)
 {
     if (cache_affected_rows() != 1)
     {
@@ -504,7 +527,9 @@ public GTPhoneAfterMessage(playerid, uid, token, number)
     for (new target; target < MAX_PLAYERS; target++)
     {
         if (!IsPlayerConnected(target) || !IsPlayerCharacterLoaded(target) || g_PhoneNumber[target] != number) continue;
-        if (g_PhonePowered[target] && !g_PhoneSilent[target]) GTPhoneAlert(target, "Tin nhan moi", "Mo /dienthoai de xem.");
+        if (g_PhonePowered[target] && !g_PhoneSilent[target]) GTPhoneAlert(target, "Tin nhan moi", "Mo /dienthoai de xem.", "sms");
+        if (gtPhoneCreated[target] && g_PhonePowered[target])
+            CEF_EmitEvent(target, GT_PHONE_BROWSER, "phone:messageReceived", CEF_INT(senderNumber));
         if (gtPhoneOpen[target]) GTPhoneHistory(target);
         break;
     }
@@ -543,15 +568,15 @@ public GTPhoneCallState(playerid)
     if (peer >= 0 && peer < MAX_PLAYERS && IsPlayerConnected(peer)) number = g_PhoneNumber[peer];
     new callState = peer == INVALID_PLAYER_ID ? -1 : stage;
     CEF_EmitEvent(playerid, GT_PHONE_BROWSER, "phone:callState", CEF_INT(callState), CEF_INT(number));
-    if (stage == 1 && number > 0 && !gtPhoneOpen[playerid] && !g_PhoneSilent[playerid]) GTPhoneAlert(playerid, "Cuoc goi den", "Dung /pickup de nghe hoac /hangup de tu choi.");
+    if (stage == 1 && number > 0 && !gtPhoneOpen[playerid] && !g_PhoneSilent[playerid]) GTPhoneAlert(playerid, "Cuoc goi den", "Dung /pickup de nghe hoac /hangup de tu choi.", "calls");
     return 1;
 }
 
-stock GTPhoneAlert(playerid, const title[], const body[])
+stock GTPhoneAlert(playerid, const title[], const body[], const app[])
 {
     if (!gtPhoneCreated[playerid]) return SendClientMessage(playerid, -1, body);
     CEF_SetBrowserVisible(playerid, GT_PHONE_BROWSER, true);
-    CEF_EmitEvent(playerid, GT_PHONE_BROWSER, "phone:alert", CEF_STR(title), CEF_STR(body));
+    CEF_EmitEvent(playerid, GT_PHONE_BROWSER, "phone:alert", CEF_STR(title), CEF_STR(body), CEF_STR(app));
     SetTimerEx("GTPhoneHideAlert", 6500, false, "ii", playerid, ++gtPhoneAlertToken[playerid]);
     return 1;
 }
@@ -636,6 +661,7 @@ public GTPhoneSetting(playerid, action)
     {
         g_PhoneSilent[playerid] = !g_PhoneSilent[playerid];
         Phone_Save(playerid);
+        GTPhoneHubData(playerid);
         return GTPhoneNotice(playerid, g_PhoneSilent[playerid] ? "Da bat im lang." : "Da tat im lang.");
     }
     if (action == 1)
@@ -673,5 +699,162 @@ CMD:phonegpsclear(playerid, params[])
 {
     #pragma unused params
     if (GTPhoneClearWaypoint(playerid)) SendClientMessage(playerid, COLOR_WHITE, "Da huy GPS dien thoai.");
+    return 1;
+}
+
+
+forward GTPhoneHubData(playerid);
+public GTPhoneHubData(playerid)
+{
+    if (!gtPhoneOpen[playerid] || !GTPhoneAllowed(playerid)) return 1;
+    GTPhoneState(playerid);
+    CEF_EmitEvent(playerid, GT_PHONE_BROWSER, "phone:hubInfo",
+        CEF_INT(s_TutorialLoaded[playerid] ? s_TutorialStage[playerid] : -1),
+        CEF_INT(g_PhoneBattery[playerid]), CEF_BOOL(g_PhoneSilent[playerid]),
+        CEF_STR(s_TutorialBank[playerid]));
+    return 1;
+}
+
+forward GTPhoneHub(playerid, action);
+public GTPhoneHub(playerid, action)
+{
+    if (!GTPhoneAction(playerid)) return 1;
+    if (GetPlayerDialogID(playerid) != INVALID_DIALOG_ID)
+        return GTPhoneError(playerid, "Hay dong hop thoai dang mo.");
+    new empty[1];
+    switch (E_PHONE_HUB_ACTION:action)
+    {
+        case PHONE_HUB_INVENTORY:
+        {
+            GTPhoneClose(playerid);
+            return cmd_inv(playerid, empty);
+        }
+        case PHONE_HUB_GUIDE:
+        {
+            GTPhoneClose(playerid);
+            return cmd_help(playerid, empty);
+        }
+        case PHONE_HUB_ATM:
+        {
+            if (GetPlayerInterior(playerid) || GetPlayerVirtualWorld(playerid) || Economy_GetNearestATM(playerid) == -1)
+                return GTPhoneError(playerid, "Hay den gan may ATM de giao dich.");
+            GTPhoneClose(playerid);
+            Economy_ShowATM(playerid);
+        }
+        case PHONE_HUB_TUTORIAL_GPS:
+        {
+            if (!s_TutorialLoaded[playerid] || s_TutorialStage[playerid] >= 3) return 1;
+            if (GetPlayerInterior(playerid) || GetPlayerVirtualWorld(playerid))
+                return GTPhoneError(playerid, "Hay ra ngoai truoc khi bat GPS.");
+            if (s_TutorialStage[playerid] == 1)
+                return GTPhoneMarkLocation(playerid, TUTORIAL_CITYHALL_X, TUTORIAL_CITYHALL_Y, TUTORIAL_CITYHALL_Z);
+            if (s_TutorialStage[playerid] == 2)
+                return GTPhoneMarkLocation(playerid, TUTORIAL_BANK_X, TUTORIAL_BANK_Y, TUTORIAL_BANK_Z);
+            if (IsPlayerCheckpointActive(playerid) && !GTPhoneClearWaypoint(playerid))
+                return GTPhoneError(playerid, "Dang co checkpoint nhiem vu.");
+            GTPhoneClose(playerid);
+            return cmd_dealers(playerid, empty);
+        }
+        case PHONE_HUB_CLEAR_GPS:
+        {
+            if (!GTPhoneClearWaypoint(playerid))
+                return GTPhoneError(playerid, "Khong co diem den GPS dien thoai.");
+            return GTPhoneNotice(playerid, "Da huy diem den GPS.");
+        }
+    }
+    return 1;
+}
+
+enum E_PHONE_DESTINATION
+{
+    phoneDestinationName[32],
+    phoneDestinationType[16],
+    Float:phoneDestinationX,
+    Float:phoneDestinationY,
+    Float:phoneDestinationZ
+};
+
+static const PhoneDestinations[][E_PHONE_DESTINATION] =
+{
+    {"Pizza Stack", "Viec lam", PIZZA_NPC_X, PIZZA_NPC_Y, PIZZA_NPC_Z},
+    {"City Hall", "Giay to", TUTORIAL_CITYHALL_X, TUTORIAL_CITYHALL_Y, TUTORIAL_CITYHALL_Z},
+    {"LS Bank", "Ngan hang", TUTORIAL_BANK_X, TUTORIAL_BANK_Y, TUTORIAL_BANK_Z}
+};
+
+stock GTPhoneGPSItem(playerid, id, const name[], const category[], Float:x, Float:y, Float:z)
+{
+    CEF_EmitEvent(playerid, GT_PHONE_BROWSER, "phone:gpsItem",
+        CEF_INT(id), CEF_STR(name), CEF_STR(category), CEF_FLOAT(x), CEF_FLOAT(y),
+        CEF_INT(floatround(GetPlayerDistanceFromPoint(playerid, x, y, z))));
+}
+
+forward GTPhoneGPSList(playerid);
+public GTPhoneGPSList(playerid)
+{
+    if (!gtPhoneOpen[playerid] || !GTPhoneAllowed(playerid)) return 1;
+    new Float:x, Float:y, Float:z;
+    GetPlayerPos(playerid, x, y, z);
+    CEF_EmitEvent(playerid, GT_PHONE_BROWSER, "phone:gpsClear", CEF_FLOAT(x), CEF_FLOAT(y));
+    for (new i; i < sizeof PhoneDestinations; i++)
+        GTPhoneGPSItem(playerid, i, PhoneDestinations[i][phoneDestinationName],
+            PhoneDestinations[i][phoneDestinationType], PhoneDestinations[i][phoneDestinationX],
+            PhoneDestinations[i][phoneDestinationY], PhoneDestinations[i][phoneDestinationZ]);
+    for (new i; i < ATM_COUNT; i++)
+        GTPhoneGPSItem(playerid, sizeof PhoneDestinations + i, g_ATMData[i][atmName], "ATM",
+            g_ATMData[i][atmX], g_ATMData[i][atmY], g_ATMData[i][atmZ]);
+    for (new i; i < FUEL_STATION_COUNT; i++)
+        GTPhoneGPSItem(playerid, sizeof PhoneDestinations + ATM_COUNT + i, g_FuelStations[i][serviceName], "Tram xang",
+            g_FuelStations[i][serviceX], g_FuelStations[i][serviceY], g_FuelStations[i][serviceZ]);
+    for (new i; i < MECH_STATION_COUNT; i++)
+        GTPhoneGPSItem(playerid, sizeof PhoneDestinations + ATM_COUNT + FUEL_STATION_COUNT + i, g_MechStations[i][serviceName], "Sua xe",
+            g_MechStations[i][serviceX], g_MechStations[i][serviceY], g_MechStations[i][serviceZ]);
+    CEF_EmitEvent(playerid, GT_PHONE_BROWSER, "phone:gpsDone");
+    return 1;
+}
+
+forward GTPhoneGPSTo(playerid, id);
+public GTPhoneGPSTo(playerid, id)
+{
+    if (!GTPhoneAction(playerid) || id < 0 || id >= sizeof PhoneDestinations + ATM_COUNT + FUEL_STATION_COUNT + MECH_STATION_COUNT) return 1;
+    if (id < sizeof PhoneDestinations)
+        return GTPhoneMarkLocation(playerid, PhoneDestinations[id][phoneDestinationX],
+            PhoneDestinations[id][phoneDestinationY], PhoneDestinations[id][phoneDestinationZ]);
+    id -= sizeof PhoneDestinations;
+    if (id < ATM_COUNT)
+        return GTPhoneMarkLocation(playerid, g_ATMData[id][atmX], g_ATMData[id][atmY], g_ATMData[id][atmZ]);
+    id -= ATM_COUNT;
+    if (id < FUEL_STATION_COUNT)
+        return GTPhoneMarkLocation(playerid, g_FuelStations[id][serviceX], g_FuelStations[id][serviceY], g_FuelStations[id][serviceZ]);
+    id -= FUEL_STATION_COUNT;
+    return GTPhoneMarkLocation(playerid, g_MechStations[id][serviceX], g_MechStations[id][serviceY], g_MechStations[id][serviceZ]);
+}
+
+forward GTPhoneBankHistory(playerid);
+public GTPhoneBankHistory(playerid)
+{
+    if (!gtPhoneOpen[playerid] || !GTPhoneAllowed(playerid)) return 1;
+    GTPhoneHubData(playerid);
+    new uid = GetPlayerCharacterID(playerid), query[384];
+    mysql_format(g_DatabaseHandle, query, sizeof query,
+        "SELECT transaction_type,amount,created_at FROM economy_transactions WHERE character_id=%d AND transaction_type IN ('atm_deposit','atm_withdraw','bank_transfer_in','bank_transfer_out') ORDER BY transaction_id DESC LIMIT 20", uid);
+    if (!mysql_tquery(g_DatabaseHandle, query, "GTPhoneBankHistoryLoaded", "iii", playerid, uid, gtPhoneQueryToken[playerid]))
+        GTPhoneError(playerid, "Khong the tai lich su giao dich.");
+    return 1;
+}
+
+forward GTPhoneBankHistoryLoaded(playerid, uid, token);
+public GTPhoneBankHistoryLoaded(playerid, uid, token)
+{
+    if (!GTPhoneSession(playerid, uid, token) || !gtPhoneOpen[playerid]) return 1;
+    CEF_EmitEvent(playerid, GT_PHONE_BROWSER, "phone:bankClear");
+    for (new i, rows = cache_num_rows(); i < rows; i++)
+    {
+        new kind[32], amount, date[24];
+        cache_get_value_name(i, "transaction_type", kind);
+        cache_get_value_name_int(i, "amount", amount);
+        cache_get_value_name(i, "created_at", date);
+        CEF_EmitEvent(playerid, GT_PHONE_BROWSER, "phone:bankItem", CEF_STR(kind), CEF_INT(amount), CEF_STR(date));
+    }
+    CEF_EmitEvent(playerid, GT_PHONE_BROWSER, "phone:bankDone");
     return 1;
 }
