@@ -1,0 +1,21 @@
+:root{font:16px system-ui,sans-serif;--paper:#f7f6f3;--ink:#272b36;--blue:#334a91;--line:#d7d9e1}
+*{box-sizing:border-box}[hidden]{display:none!important}
+body{margin:0;background:transparent;color:var(--ink)}
+#menu{position:fixed;inset:0;display:grid;place-items:center;background:#171b2b24}
+button{font:inherit;color:inherit;cursor:pointer;border:0;touch-action:manipulation}
+button:focus-visible{outline:3px solid #7488c7;outline-offset:3px}
+#wheel{position:relative;width:min(470px,92vw,90vh);aspect-ratio:1}
+.tile,.hub{position:absolute;left:var(--x,50%);top:var(--y,50%);translate:-50% -50%;display:grid;place-content:center;justify-items:center;gap:4px;width:25%;aspect-ratio:1;border-radius:15%;box-shadow:0 5px 18px #15203338;transition:scale .14s,background .14s}
+.tile{background:var(--paper);border:1px solid var(--line);font-size:clamp(9px,2.6vh,15px);font-weight:650;padding:3px}
+.tile:hover,.tile:focus-visible,.tile:active{scale:1.08;background:#fff;border-color:#8a99c0;z-index:1}
+.tile span{font-size:1.6em;font-weight:400;line-height:1}
+.hub{width:20%;background:var(--blue);color:#fff;font-weight:650;font-size:clamp(9px,2.6vh,16px)}
+kbd{font:700 1.35em system-ui}
+.panel{background:var(--paper);border:1px solid var(--line);border-radius:18px;width:min(460px,91vw);padding:18px;box-shadow:0 12px 38px #11182a4d;max-height:90vh;overflow:auto}
+header{display:flex;align-items:center;gap:12px;padding-bottom:12px;border-bottom:1px solid var(--line)}
+h1{margin:0;font-size:clamp(16px,5vh,23px);flex:1}header button{padding:0 8px;background:#e8eaf2;border-radius:7px;font-size:24px}
+.steps{list-style:none;padding:0;margin:10px 0}.steps li{padding:10px 11px;border-radius:8px;margin-bottom:3px}.steps .current{background:#e4e8f3;border-left:4px solid var(--blue)}.steps .done{color:#52605d}
+.action{display:block;width:100%;background:var(--blue);color:#fff;border-radius:8px;padding:10px;font-weight:650}.action:disabled{cursor:default;opacity:.76}
+.days{display:grid;grid-template-columns:repeat(7,1fr);gap:5px;margin:16px 0}.days span{border:1px solid var(--line);border-radius:8px;text-align:center;padding:9px 1px}
+.muted{color:#525869;font-size:13px}#notice{color:#334a91}
+@media(prefers-reduced-motion:reduce){.tile,.hub{transition:none}}

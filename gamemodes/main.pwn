@@ -175,6 +175,10 @@ forward Trucking_ShowEmployeeCompanyMenu(playerid);
 #include "modules/system/trucking/core.pwn"
 #include "modules/system/vehicles/service_stations.pwn"
 
+#if defined GTASANVN_CEF_PHONE
+    #include "modules/system/menu/cef.pwn"
+#endif
+
 // This fallback must remain after every command module.
 #include "modules/system/help/unknown.pwn"
 

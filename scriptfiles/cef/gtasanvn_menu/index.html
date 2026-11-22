@@ -1,0 +1,18 @@
+<!doctype html>
+<html lang="vi">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Menu GTASANVN</title>
+<link rel="stylesheet" href="style.css">
+<main id="menu" hidden>
+  <nav id="wheel" aria-label="Menu nhân vật">
+    <button class="hub" data-close><kbd>H</kbd>Menu</button>
+  </nav>
+  <section class="panel" id="panel" hidden>
+    <header><button id="back" aria-label="Quay lại">‹</button><h1 id="title"></h1><span id="progress"></span></header>
+    <div id="content"></div>
+    <p id="notice" role="status" hidden></p>
+  </section>
+</main>
+<script src="menu.js" defer></script>
+</html>
